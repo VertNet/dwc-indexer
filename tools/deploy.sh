@@ -18,5 +18,4 @@
 # This script compiles JavaScript in www/ into www-built/ and then deploys the 
 # entire app to App Engine. 
 # Example usage: $ ./deploy.js <app_engine_password> <app_version>
-node r.js -o build.js
 echo $1 | appcfg.py update --email=eightysteele@gmail.com --passin -V $2 ../

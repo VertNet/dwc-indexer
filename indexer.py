@@ -28,6 +28,7 @@ from datetime import datetime
 from google.appengine.api import files
 from google.appengine.api import namespace_manager
 from google.appengine.api import search
+from google.appengine.api import taskqueue
 
 from google.appengine.ext import ndb
 
