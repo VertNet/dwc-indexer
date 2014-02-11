@@ -17,4 +17,4 @@
 
 # This script launches the dev app server on localhost:8080
 # Example usage: $ ./dev.sh
-dev_appserver.py --storage_path=../storage/ --clear_datastore=1 ../app.yaml
+dev_appserver.py --storage_path=../storage/ --search_indexes_path=../storage/ --clear_datastore=1 ../app.yaml

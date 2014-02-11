@@ -73,13 +73,13 @@ class ListIndexes(webapp2.RequestHandler):
 
 class BootstrapGcs(webapp2.RequestHandler):
     def get(self):  
-        """Bootstraps local GCS with test data dwc files in storage/dwc."""
+        """Bootstraps local GCS with test data dwc files in dwc."""
         if not IS_DEV:
             self.response.out.write('Bootstrapping GCS is for the dev_server only.')
             return      
         write_retry_params = gcs.RetryParams(backoff_factor=1.1)
-        for filename in os.listdir('storage/dwc'):
-            path = os.path.abspath('storage/dwc/%s' % filename)
+        for filename in os.listdir('dwc'):
+            path = os.path.abspath('dwc/%s' % filename)
             gcs_path = '%s/%s' % (DEV_BUCKET, filename)
             data = open(path, 'r').read()
             gcs_file = gcs.open(

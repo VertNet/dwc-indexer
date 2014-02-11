@@ -42,6 +42,8 @@ FULL_TEXT_KEYS = ['type', 'institutionid', 'collectionid', 'institutioncode',
 
 HEADER = ['pubdate', 'url', 'eml', 'dwca', 'title', 'icode', 'description', 'contact', 'orgname', 'email', 'emlrights', 'count', 'citation', 'networks', 'harvestid', 'id', 'associatedmedia', 'associatedoccurrences', 'associatedreferences', 'associatedsequences', 'associatedtaxa', 'basisofrecord', 'bed', 'behavior', 'catalognumber', 'collectioncode', 'collectionid', 'continent', 'coordinateprecision', 'coordinateuncertaintyinmeters', 'country', 'countrycode', 'county', 'datageneralizations', 'dateidentified', 'day', 'decimallatitude', 'decimallongitude', 'disposition', 'earliestageorloweststage', 'earliesteonorlowesteonothem', 'earliestepochorlowestseries', 'earliesteraorlowesterathem', 'earliestperiodorlowestsystem', 'enddayofyear', 'establishmentmeans', 'eventattributes', 'eventdate', 'eventid', 'eventremarks', 'eventtime', 'fieldnotes', 'fieldnumber', 'footprintspatialfit', 'footprintwkt', 'formation', 'geodeticdatum', 'geologicalcontextid', 'georeferenceprotocol', 'georeferenceremarks', 'georeferencesources', 'georeferenceverificationstatus', 'georeferencedby', 'group', 'habitat', 'highergeography', 'highergeographyid', 'highestbiostratigraphiczone', 'identificationattributes', 'identificationid', 'identificationqualifier', 'identificationreferences', 'identificationremarks', 'identifiedby', 'individualcount', 'individualid', 'informationwithheld', 'institutioncode', 'island', 'islandgroup', 'latestageorhigheststage', 'latesteonorhighesteonothem', 'latestepochorhighestseries', 'latesteraorhighesterathem', 'latestperiodorhighestsystem', 'lifestage', 'lithostratigraphicterms', 'locality', 'locationattributes', 'locationid', 'locationremarks', 'lowestbiostratigraphiczone', 'maximumdepthinmeters', 'maximumdistanceabovesurfaceinmeters', 'maximumelevationinmeters', 'measurementaccuracy', 'measurementdeterminedby', 'measurementdetermineddate', 'measurementid', 'measurementmethod', 'measurementremarks', 'measurementtype', 'measurementunit', 'measurementvalue', 'member', 'minimumdepthinmeters', 'minimumdistanceabovesurfaceinmeters', 'minimumelevationinmeters', 'month', 'occurrenceattributes', 'occurrencedetails', 'occurrenceid', 'occurrenceremarks', 'othercatalognumbers', 'pointradiusspatialfit', 'preparations', 'previousidentifications', 'recordnumber', 'recordedby', 'relatedresourceid', 'relationshipaccordingto', 'relationshipestablisheddate', 'relationshipofresource', 'relationshipremarks', 'reproductivecondition', 'resourceid', 'resourcerelationshipid', 'samplingprotocol', 'sex', 'startdayofyear', 'stateprovince', 'taxonattributes', 'typestatus', 'verbatimcoordinatesystem', 'verbatimcoordinates', 'verbatimdepth', 'verbatimelevation', 'verbatimeventdate', 'verbatimlatitude', 'verbatimlocality', 'verbatimlongitude', 'waterbody', 'year', 'footprintsrs', 'georeferenceddate', 'identificationverificationstatus', 'institutionid', 'locationaccordingto', 'municipality', 'occurrencestatus', 'ownerinstitutioncode', 'samplingeffort', 'verbatimsrs', 'locationaccordingto7', 'taxonid', 'taxonconceptid', 'datasetid', 'datasetname', 'source', 'modified', 'accessrights', 'rights', 'rightsholder', 'language', 'higherclassification', 'kingdom', 'phylum', 'classs', 'order', 'family', 'genus', 'subgenus', 'specificepithet', 'infraspecificepithet', 'scientificname', 'scientificnameid', 'vernacularname', 'taxonrank', 'verbatimtaxonrank', 'infraspecificmarker', 'scientificnameauthorship', 'nomenclaturalcode', 'namepublishedin', 'namepublishedinid', 'taxonomicstatus', 'nomenclaturalstatus', 'nameaccordingto', 'nameaccordingtoid', 'parentnameusageid', 'parentnameusage', 'originalnameusageid', 'originalnameusage', 'acceptednameusageid', 'acceptednameusage', 'taxonremarks', 'dynamicproperties', 'namepublishedinyear', 'season', 'dummy']
 
+NON_DWC_HEADER_KEYS = ['pubdate', 'url', 'eml', 'dwca', 'title', 'icode', 'description', 'contact', 'orgname', 'email', 'emlrights', 'count', 'citation', 'networks', 'harvestid', 'season', 'measurementaccuracy', 'measurementdeterminedby', 'measurementdetermineddate', 'measurementid', 'measurementmethod', 'measurementremarks', 'measurementtype', 'measurementunit', 'measurementvalue', 'relatedresourceid', 'relationshipaccordingto', 'relationshipestablisheddate', 'relationshipofresource', 'relationshipremarks', 'resourceid', 'resourcerelationshipid', 'dummy']
+
 def is_number(s):
     try:
         float(s)
@@ -111,7 +113,7 @@ def has_media(rec):
             return 1
     return 0
 
-tissuetokens = ["+t", "tiss", "blood", "dmso", "dna", "extract", "froze", 
+tissuetokens = ["+t", "tiss", "tissue", "blood", "dmso", "dna", "extract", "froze", 
                 "forzen", "freez", "heart", "muscle", "higado", "kidney",
                 "liver", "lung", "nitrogen", "pectoral", "rinon",
                 "kidney", "rnalater", "sample", "sangre", "toe", "spleen"]
@@ -228,6 +230,14 @@ def full_text_key_trim(rec):
       rec.pop(key)
   return rec
 
+# Return a record with verbatim original Darwin Core fields plus the keyname field.
+def verbatim_dwc(rec, keyname):
+  # for key in rec.keys():
+  #   if key in NON_DWC_HEADER_KEYS:
+  #     rec.pop(key)
+  rec['keyname'] = keyname
+  return rec
+
 def index_record(data, index_name, namespace, issue=None):
     county, stateprov, year, genus, icode, country, specep, lat, lon, catnum, collname, season, classs, family, url = map(data.get, 
         ['county', 'stateprovince', 'year', 'genus', 'icode', 'country', 'specificepithet', 
@@ -239,28 +249,30 @@ def index_record(data, index_name, namespace, issue=None):
     data['class'] = classs
     organization_slug = slugify(data['orgname'])
     resource_slug = slugify(data['title'])
-    data['keyname'] = '%s/%s/%s' % (organization_slug, resource_slug, data['harvestid'])
+    keyname = '%s/%s/%s' % (organization_slug, resource_slug, data['harvestid'])
+    data['keyname'] = keyname
     
     doc = search.Document(
-        doc_id=data['keyname'],
+        doc_id=keyname,
         rank=rank(data),
 		fields=[search.TextField(name='year', value=year),
-				search.TextField(name='genus', value=genus),
-        		search.TextField(name='institutioncode', value=icode),
-                search.AtomField(name='country', value=country),            
-                search.AtomField(name='stateprovince', value=stateprov),  
-                search.TextField(name='county', value=county),            
+                search.TextField(name='genus', value=genus),
+                search.TextField(name='institutioncode', value=icode),
+                search.AtomField(name='country', value=country),
+                search.AtomField(name='stateprovince', value=stateprov),
+                search.TextField(name='county', value=county),
                 search.TextField(name='specificepithet', value=specep),
                 search.TextField(name='catalognumber', value=catnum),
                 search.TextField(name='collectorname', value=collname),
-                search.TextField(name='class', value=classs),                
-                search.TextField(name='family', value=family),                
+                search.TextField(name='class', value=classs),
+                search.TextField(name='family', value=family),
                 search.TextField(name='type', value=_type(data)),
                 search.TextField(name='url', value=url),
-                search.NumberField(name='media', value=has_media(data)),            
-                search.NumberField(name='tissue', value=has_tissue(data)),            
-                search.NumberField(name='rank', value=rank(data)),            
-        		search.TextField(name='record', value=json.dumps(full_text_key_trim(data)))])
+                search.NumberField(name='media', value=has_media(data)),
+                search.NumberField(name='tissue', value=has_tissue(data)),
+                search.NumberField(name='rank', value=rank(data)),
+                search.TextField(name='verbatim_record', value=json.dumps(verbatim_dwc(data, keyname))),
+                search.TextField(name='record', value=json.dumps(full_text_key_trim(data)))])
 
     location = _location(lat, lon)
     eventdate = _eventdate(year)
