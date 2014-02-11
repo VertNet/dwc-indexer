@@ -232,9 +232,9 @@ def full_text_key_trim(rec):
 
 # Return a record with verbatim original Darwin Core fields plus the keyname field.
 def verbatim_dwc(rec, keyname):
-  for key in rec.keys():
-    if key in NON_DWC_HEADER_KEYS:
-      rec.pop(key)
+  # for key in rec.keys():
+  #   if key in NON_DWC_HEADER_KEYS:
+  #     rec.pop(key)
   rec['keyname'] = keyname
   return rec
 
