@@ -142,10 +142,15 @@ class IndexGcsPath(webapp2.RequestHandler):
 
 
 class IndexDeleteResource(webapp2.RequestHandler):
-    def get(self):  
-        index_name, namespace, id = map(self.request.get, ['index_name', 'namespace', 'id'])
+    def get(self):
+        index_name, namespace, id = map(self.request.get,
+                                        ['index_name', 'namespace', 'id'])
         index = search.Index(index_name, namespace=namespace)
-        docs = index.get_range(start_id=id, ids_only=True, limit=100, include_start_object=True).results
+        if id:
+            docs = index.get_range(start_id=id, ids_only=True, limit=100,
+                                   include_start_object=True)
+        else:
+            docs = index.get_range(ids_only=True, limit=100).results
         if len(docs) < 1:
             return
         ids = map(lambda x: x.doc_id, docs)
@@ -153,8 +158,8 @@ class IndexDeleteResource(webapp2.RequestHandler):
         index.delete(ids)
         params = dict(index_name=index_name, namespace=namespace, id=next_id)
         if len(docs) >= 100:
-            taskqueue.add(url='/index-delete-resource', params=params, 
-                queue_name="index-delete-resource")
+            taskqueue.add(url='/index-delete-resource', params=params,
+                          queue_name="index-delete-resource")
 
 
 routes = [
