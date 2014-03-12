@@ -160,7 +160,11 @@ class IndexDeleteResource(webapp2.RequestHandler):
         ids = [doc.doc_id for doc in docs if resource in doc.doc_id]
 
         if len(ids) < 1:  # Didn't find any matches in this batch.
-            next_id = docs[-1].doc_id
+            if len(docs) == 100:
+                next_id = docs[-1].doc_id
+            else:
+                index.delete(id)
+                return
         else:  # Matches found, delete them.
             blast, next_id = ids[:-1], ids[-1]
             index.delete(blast)
