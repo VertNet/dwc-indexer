@@ -15,34 +15,88 @@ from mapreduce import context
 IS_DEV = 'Development' in os.environ['SERVER_SOFTWARE']
 
 # TODO: Pool search api puts?
-FULL_TEXT_KEYS = ['type', 'institutionid', 'collectionid', 'institutioncode',
-'collectioncode', 'datasetname', 'basisofrecord', 'dynamicproperties',
-'occurrenceid', 'catalognumber', 'occurrenceremarks', 'recordnumber',
-'recordedby', 'individualid', 'sex', 'lifestage', 'reproductivecondition',
-'behavior', 'establishmentmeans', 'preparations', 'disposition',
-'othercatalognumbers', 'previousidentifications', 'materialsampleid',
-'verbatimeventdate', 'habitat', 'fieldnumber', 'fieldnotes',
-'highergeography', 'continent', 'waterbody', 'islandgroup', 'island',
-'country', 'countrycode', 'stateprovince', 'county', 'municipality',
-'locality', 'verbatimlocality', 'verbatimelevation', 'verbatimdepth',
-'geodeticdatum', 'georeferencedby', 'georeferenceprotocol',
-'georeferencesources', 'georeferenceverificationstatus',
-'georeferenceremarks', 'earliesteonorlowesteonothem',
-'latesteonorhighesteonothem', 'earliesteraorlowesterathem',
-'latesteraorhighesterathem', 'earliestperiodorlowestsystem',
-'latestperiodorhighestsystem', 'earliestepochorlowestseries',
-'latestepochorhighestseries', 'earliestageorloweststage',
-'latestageorhigheststage', 'lowestbiostratigraphiczone',
-'highestbiostratigraphiczone', 'lithostratigraphicterms', 'group',
-'formation', 'member', 'bed', 'identifiedby', 'identificationreferences',
-'identificationverificationstatus', 'identificationremarks',
-'identificationqualifier', 'typestatus', 'higherclassification',
-'kingdom', 'phylum', 'class', 'order', 'family', 'genus', 'subgenus',
-'specificepithet', 'infraspecificepithet', 'taxonrank', 'vernacularname']
+FULL_TEXT_KEYS = [
+'type', 'institutionid', 'collectionid', 'institutioncode', 'collectioncode', 
+'datasetname', 'basisofrecord', 'dynamicproperties', 'occurrenceid', 'catalognumber', 
+'occurrenceremarks', 'recordnumber', 'recordedby', 'individualid', 'sex', 'lifestage', 
+'reproductivecondition', 'behavior', 'establishmentmeans', 'preparations', 'disposition',
+'othercatalognumbers', 'previousidentifications', 'materialsampleid', 
+'verbatimeventdate', 'habitat', 'fieldnumber', 'fieldnotes', 'highergeography', 
+'continent', 'waterbody', 'islandgroup', 'island', 'country', 'countrycode', 
+'stateprovince', 'county', 'municipality', 'locality', 'verbatimlocality', 
+'verbatimelevation', 'verbatimdepth', 'geodeticdatum', 'georeferencedby', 
+'georeferenceprotocol', 'georeferencesources', 'georeferenceverificationstatus',
+'georeferenceremarks', 'earliesteonorlowesteonothem', 'latesteonorhighesteonothem', 
+'earliesteraorlowesterathem', 'latesteraorhighesterathem', 
+'earliestperiodorlowestsystem', 'latestperiodorhighestsystem', 
+'earliestepochorlowestseries', 'latestepochorhighestseries', 'earliestageorloweststage',
+'latestageorhigheststage', 'lowestbiostratigraphiczone', 'highestbiostratigraphiczone', 
+'lithostratigraphicterms', 'group', 'formation', 'member', 'bed', 'identifiedby', 
+'identificationreferences', 'identificationverificationstatus', 'identificationremarks',
+'identificationqualifier', 'typestatus', 'higherclassification', 'kingdom', 'phylum', 
+'class', 'order', 'family', 'genus', 'subgenus', 'specificepithet', 
+'infraspecificepithet', 'taxonrank', 'vernacularname']
 
-HEADER = ['pubdate', 'url', 'eml', 'dwca', 'title', 'icode', 'description', 'contact', 'orgname', 'email', 'emlrights', 'count', 'citation', 'networks', 'harvestid', 'id', 'associatedmedia', 'associatedoccurrences', 'associatedreferences', 'associatedsequences', 'associatedtaxa', 'basisofrecord', 'bed', 'behavior', 'catalognumber', 'collectioncode', 'collectionid', 'continent', 'coordinateprecision', 'coordinateuncertaintyinmeters', 'country', 'countrycode', 'county', 'datageneralizations', 'dateidentified', 'day', 'decimallatitude', 'decimallongitude', 'disposition', 'earliestageorloweststage', 'earliesteonorlowesteonothem', 'earliestepochorlowestseries', 'earliesteraorlowesterathem', 'earliestperiodorlowestsystem', 'enddayofyear', 'establishmentmeans', 'eventattributes', 'eventdate', 'eventid', 'eventremarks', 'eventtime', 'fieldnotes', 'fieldnumber', 'footprintspatialfit', 'footprintwkt', 'formation', 'geodeticdatum', 'geologicalcontextid', 'georeferenceprotocol', 'georeferenceremarks', 'georeferencesources', 'georeferenceverificationstatus', 'georeferencedby', 'group', 'habitat', 'highergeography', 'highergeographyid', 'highestbiostratigraphiczone', 'identificationattributes', 'identificationid', 'identificationqualifier', 'identificationreferences', 'identificationremarks', 'identifiedby', 'individualcount', 'individualid', 'informationwithheld', 'institutioncode', 'island', 'islandgroup', 'latestageorhigheststage', 'latesteonorhighesteonothem', 'latestepochorhighestseries', 'latesteraorhighesterathem', 'latestperiodorhighestsystem', 'lifestage', 'lithostratigraphicterms', 'locality', 'locationattributes', 'locationid', 'locationremarks', 'lowestbiostratigraphiczone', 'maximumdepthinmeters', 'maximumdistanceabovesurfaceinmeters', 'maximumelevationinmeters', 'measurementaccuracy', 'measurementdeterminedby', 'measurementdetermineddate', 'measurementid', 'measurementmethod', 'measurementremarks', 'measurementtype', 'measurementunit', 'measurementvalue', 'member', 'minimumdepthinmeters', 'minimumdistanceabovesurfaceinmeters', 'minimumelevationinmeters', 'month', 'occurrenceattributes', 'occurrencedetails', 'occurrenceid', 'occurrenceremarks', 'othercatalognumbers', 'pointradiusspatialfit', 'preparations', 'previousidentifications', 'recordnumber', 'recordedby', 'relatedresourceid', 'relationshipaccordingto', 'relationshipestablisheddate', 'relationshipofresource', 'relationshipremarks', 'reproductivecondition', 'resourceid', 'resourcerelationshipid', 'samplingprotocol', 'sex', 'startdayofyear', 'stateprovince', 'taxonattributes', 'typestatus', 'verbatimcoordinatesystem', 'verbatimcoordinates', 'verbatimdepth', 'verbatimelevation', 'verbatimeventdate', 'verbatimlatitude', 'verbatimlocality', 'verbatimlongitude', 'waterbody', 'year', 'footprintsrs', 'georeferenceddate', 'identificationverificationstatus', 'institutionid', 'locationaccordingto', 'municipality', 'occurrencestatus', 'ownerinstitutioncode', 'samplingeffort', 'verbatimsrs', 'locationaccordingto7', 'taxonid', 'taxonconceptid', 'datasetid', 'datasetname', 'source', 'modified', 'accessrights', 'rights', 'rightsholder', 'language', 'higherclassification', 'kingdom', 'phylum', 'classs', 'order', 'family', 'genus', 'subgenus', 'specificepithet', 'infraspecificepithet', 'scientificname', 'scientificnameid', 'vernacularname', 'taxonrank', 'verbatimtaxonrank', 'infraspecificmarker', 'scientificnameauthorship', 'nomenclaturalcode', 'namepublishedin', 'namepublishedinid', 'taxonomicstatus', 'nomenclaturalstatus', 'nameaccordingto', 'nameaccordingtoid', 'parentnameusageid', 'parentnameusage', 'originalnameusageid', 'originalnameusage', 'acceptednameusageid', 'acceptednameusage', 'taxonremarks', 'dynamicproperties', 'namepublishedinyear', 'season', 'dummy']
+HEADER = [
+'pubdate', 'url', 'eml', 'dwca', 'title', 'icode', 'description', 'contact', 'orgname', 
+'email', 'emlrights', 'count', 'citation', 'networks', 'harvestid', 
+'id', 'associatedmedia', 'associatedoccurrences', 'associatedreferences', 
+'associatedsequences', 'associatedtaxa', 'basisofrecord', 'bed', 'behavior', 
+'catalognumber', 'collectioncode', 'collectionid', 'continent', 'coordinateprecision', 
+'coordinateuncertaintyinmeters', 'country', 'countrycode', 'county', 
+'datageneralizations', 'dateidentified', 'day', 'decimallatitude', 'decimallongitude', 
+'disposition', 'earliestageorloweststage', 'earliesteonorlowesteonothem', 
+'earliestepochorlowestseries', 'earliesteraorlowesterathem', 
+'earliestperiodorlowestsystem', 'enddayofyear', 'establishmentmeans', 'eventattributes', 
+'eventdate', 'eventid', 'eventremarks', 'eventtime', 'fieldnotes', 'fieldnumber', 
+'footprintspatialfit', 'footprintwkt', 'formation', 'geodeticdatum', 
+'geologicalcontextid', 'georeferenceprotocol', 'georeferenceremarks', 
+'georeferencesources', 'georeferenceverificationstatus', 'georeferencedby', 'group', 
+'habitat', 'highergeography', 'highergeographyid', 'highestbiostratigraphiczone', 
+'identificationattributes', 'identificationid', 'identificationqualifier', 
+'identificationreferences', 'identificationremarks', 'identifiedby', 'individualcount', 
+'individualid', 'informationwithheld', 'institutioncode', 'island', 'islandgroup', 
+'latestageorhigheststage', 'latesteonorhighesteonothem', 'latestepochorhighestseries', 
+'latesteraorhighesterathem', 'latestperiodorhighestsystem', 'lifestage', 
+'lithostratigraphicterms', 'locality', 'locationattributes', 'locationid', 
+'locationremarks', 'lowestbiostratigraphiczone', 'maximumdepthinmeters', 
+'maximumdistanceabovesurfaceinmeters', 'maximumelevationinmeters', 
+'measurementaccuracy', 'measurementdeterminedby', 'measurementdetermineddate', 
+'measurementid', 'measurementmethod', 'measurementremarks', 'measurementtype', 
+'measurementunit', 'measurementvalue', 
+'member', 'minimumdepthinmeters', 'minimumdistanceabovesurfaceinmeters', 
+'minimumelevationinmeters', 'month', 'occurrenceattributes', 'occurrencedetails', 
+'occurrenceid', 'occurrenceremarks', 'othercatalognumbers', 'pointradiusspatialfit', 
+'preparations', 'previousidentifications', 'recordnumber', 'recordedby', 
+'relatedresourceid', 'relationshipaccordingto', 'relationshipestablisheddate', 
+'relationshipofresource', 'relationshipremarks', 
+'reproductivecondition', 
+'resourceid', 'resourcerelationshipid', 
+'samplingprotocol', 'sex', 'startdayofyear', 'stateprovince', 'taxonattributes', 
+'typestatus', 'verbatimcoordinatesystem', 'verbatimcoordinates', 'verbatimdepth', 
+'verbatimelevation', 'verbatimeventdate', 'verbatimlatitude', 'verbatimlocality', 
+'verbatimlongitude', 'waterbody', 'year', 'footprintsrs', 'georeferenceddate', 
+'identificationverificationstatus', 'institutionid', 'locationaccordingto', 
+'municipality', 'occurrencestatus', 'ownerinstitutioncode', 'samplingeffort', 
+'verbatimsrs', 'locationaccordingto7', 'taxonid', 'taxonconceptid', 'datasetid', 
+'datasetname', 'source', 'modified', 'accessrights', 'rights', 'rightsholder', 
+'language', 'higherclassification', 'kingdom', 'phylum', 'classs', 'order', 
+'family', 'genus', 'subgenus', 'specificepithet', 'infraspecificepithet', 
+'scientificname', 'scientificnameid', 'vernacularname', 'taxonrank', 
+'verbatimtaxonrank', 'infraspecificmarker', 'scientificnameauthorship', 
+'nomenclaturalcode', 'namepublishedin', 'namepublishedinid', 'taxonomicstatus', 
+'nomenclaturalstatus', 'nameaccordingto', 'nameaccordingtoid', 'parentnameusageid', 
+'parentnameusage', 'originalnameusageid', 'originalnameusage', 'acceptednameusageid', 
+'acceptednameusage', 'taxonremarks', 'dynamicproperties', 'namepublishedinyear']
 
-NON_DWC_HEADER_KEYS = ['pubdate', 'url', 'eml', 'dwca', 'title', 'icode', 'description', 'contact', 'orgname', 'email', 'emlrights', 'count', 'citation', 'networks', 'harvestid', 'season', 'measurementaccuracy', 'measurementdeterminedby', 'measurementdetermineddate', 'measurementid', 'measurementmethod', 'measurementremarks', 'measurementtype', 'measurementunit', 'measurementvalue', 'relatedresourceid', 'relationshipaccordingto', 'relationshipestablisheddate', 'relationshipofresource', 'relationshipremarks', 'resourceid', 'resourcerelationshipid', 'dummy']
+NON_DWC_HEADER_KEYS = [
+'pubdate', 'url', 'eml', 'dwca', 'title', 'icode', 'description', 'contact', 'orgname', 
+'email', 'emlrights', 'count', 'citation', 'networks', 'harvestid', 
+'measurementaccuracy', 'measurementdeterminedby', 'measurementdetermineddate', 
+'measurementid', 'measurementmethod', 'measurementremarks', 'measurementtype', 
+'measurementunit', 'measurementvalue', 'relatedresourceid', 'relationshipaccordingto', 
+'relationshipestablisheddate', 'relationshipofresource', 'relationshipremarks', 
+'resourceid', 'resourcerelationshipid']
 
 def is_number(s):
     try:
@@ -188,7 +242,9 @@ def get_rec_dict(rec):
     val = {}
     for name, value in rec.iteritems():
         if value:
-            val[name] = value
+        	# Replace all tabs, vertical tabs, carriage returns, and line feeds 
+        	# in field contents with space, then remove leading and trailing spaces.
+            val[name] = re.sub('[\v\t\r\n]+', ' ', value).strip(' ')
     return val
 
     @classmethod
@@ -239,9 +295,9 @@ def verbatim_dwc(rec, keyname):
   return rec
 
 def index_record(data, index_name, namespace, issue=None):
-    county, stateprov, year, genus, icode, country, specep, lat, lon, catnum, collname, season, classs, family, url = map(data.get, 
+    county, stateprov, year, genus, icode, country, specep, lat, lon, catnum, collname, classs, family, url = map(data.get, 
         ['county', 'stateprovince', 'year', 'genus', 'icode', 'country', 'specificepithet', 
-        'decimallatitude', 'decimallongitude', 'catalognumber', 'collectorname', 'season', 'classs', 'family', 'url'])
+        'decimallatitude', 'decimallongitude', 'catalognumber', 'recordedby', 'classs', 'family', 'url'])
 
     if data.has_key('classs'):        
         data.pop('classs')
@@ -263,7 +319,7 @@ def index_record(data, index_name, namespace, issue=None):
                 search.TextField(name='county', value=county),
                 search.TextField(name='specificepithet', value=specep),
                 search.TextField(name='catalognumber', value=catnum),
-                search.TextField(name='collectorname', value=collname),
+                search.TextField(name='recordedby', value=collname),
                 search.TextField(name='class', value=classs),
                 search.TextField(name='family', value=family),
                 search.TextField(name='type', value=_type(data)),
