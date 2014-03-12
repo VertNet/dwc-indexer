@@ -142,19 +142,33 @@ class IndexGcsPath(webapp2.RequestHandler):
 
 
 class IndexDeleteResource(webapp2.RequestHandler):
-    def get(self):  
-        index_name, namespace, id = map(self.request.get, ['index_name', 'namespace', 'id'])
+    def get(self):
+        index_name, namespace, id, resource = \
+            map(self.request.get,
+                ['index_name', 'namespace', 'id', 'resource'])
         index = search.Index(index_name, namespace=namespace)
-        docs = index.get_range(start_id=id, ids_only=True, limit=100, include_start_object=True).results
+
+        if id:
+            docs = index.get_range(start_id=id, ids_only=True, limit=100,
+                                   include_start_object=True)
+        else:
+            docs = index.get_range(ids_only=True, limit=100).results
         if len(docs) < 1:
             return
-        ids = map(lambda x: x.doc_id, docs)
-        blast, next_id = ids[:-1], ids[-1]
-        index.delete(ids)
-        params = dict(index_name=index_name, namespace=namespace, id=next_id)
+
+        # Filter out doc_ids that don't contain resource:
+        ids = filter(lambda doc: resource in doc.doc_id, docs)
+
+        if len(ids) < 1:  # Didn't find any matches in this batch.
+            next_id = ids[-1]
+        else:  # Matches found, delete them.
+            blast, next_id = ids[:-1], ids[-1]
+            index.delete(blast)
+        params = dict(index_name=index_name, namespace=namespace, id=next_id,
+                      resource=resource)
         if len(docs) >= 100:
-            taskqueue.add(url='/index-delete-resource', params=params, 
-                queue_name="index-delete-resource")
+            taskqueue.add(url='/index-delete-resource', params=params,
+                          queue_name="index-delete-resource")
 
 
 routes = [
