@@ -179,6 +179,12 @@ def has_tissue(rec):
                 return 1
     return 0
 
+def has_typestatus(rec):
+    if rec.has_key('typestatus'):
+        if rec['typestatus'] is not None:
+            return 1
+    return 0
+
 def network(rec, network):
     if rec.has_key('networks'):
         networks = [x.lower() for x in rec['networks'].split(',')]
@@ -326,6 +332,7 @@ def index_record(data, index_name, namespace, issue=None):
                 search.TextField(name='url', value=url),
                 search.NumberField(name='media', value=has_media(data)),
                 search.NumberField(name='tissue', value=has_tissue(data)),
+                search.NumberField(name='hastypestatus', value=has_typestatus(data)),
                 search.NumberField(name='rank', value=rank(data)),
                 search.TextField(name='verbatim_record', value=json.dumps(verbatim_dwc(data, keyname))),
                 search.TextField(name='record', value=json.dumps(full_text_key_trim(data)))])
