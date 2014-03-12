@@ -150,17 +150,17 @@ class IndexDeleteResource(webapp2.RequestHandler):
 
         if id:
             docs = index.get_range(start_id=id, ids_only=True, limit=100,
-                                   include_start_object=True)
+                                   include_start_object=True).results
         else:
             docs = index.get_range(ids_only=True, limit=100).results
         if len(docs) < 1:
             return
 
         # Filter out doc_ids that don't contain resource:
-        ids = filter(lambda doc: resource in doc.doc_id, docs)
+        ids = [doc.doc_id for doc in docs if resource in doc.doc_id]
 
         if len(ids) < 1:  # Didn't find any matches in this batch.
-            next_id = ids[-1]
+            next_id = docs[-1].doc_id
         else:  # Matches found, delete them.
             blast, next_id = ids[:-1], ids[-1]
             index.delete(blast)
