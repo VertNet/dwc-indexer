@@ -171,6 +171,12 @@ class IndexDeleteResource(webapp2.RequestHandler):
         params = dict(index_name=index_name, namespace=namespace, id=next_id,
                       resource=resource)
         if len(docs) >= 100:
+            logging.info(params)
+            logging.info('DOCS %s' % len(docs))
+            logging.info('IDS %s' % len(ids))
+            if blast and len(blast) == 1 and next_id == blast[0]:
+                index.delete(next_id)
+                return
             taskqueue.add(url='/index-delete-resource', params=params,
                           queue_name="index-delete-resource")
 
