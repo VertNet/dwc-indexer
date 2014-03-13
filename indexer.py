@@ -195,12 +195,6 @@ class IndexDeleteResource(webapp2.RequestHandler):
             params['dryrun'] = 1
 
         if len(docs) >= 100:
-            if blast and len(blast) == 1 and next_id == blast[0]:
-                if not dryrun:
-                    index.delete(next_id)
-                else:
-                    logging.info('DONE index.delete(%s)' % next_id)
-                return
             taskqueue.add(url='/index-delete-resource', params=params,
                           queue_name="index-delete-resource")
 
