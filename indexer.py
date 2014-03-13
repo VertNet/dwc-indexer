@@ -165,12 +165,6 @@ class IndexDeleteResource(webapp2.RequestHandler):
         if len(ids) < 1:  # Didn't find any matches in this batch.
             if len(docs) == 100:
                 next_id = docs[-1].doc_id
-            # else:
-            #     if not dryrun:
-            #         index.delete(id)
-            #     else:
-            #         logging.info('DONE index.delete(%s)' % id)
-            #     return
         elif len(ids) == 1:
             if not dryrun:
                 index.delete(ids[0])
