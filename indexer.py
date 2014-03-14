@@ -20,6 +20,7 @@ import time
 import webapp2
 
 import utils
+import json
 
 import cloudstorage as gcs
 
@@ -143,29 +144,50 @@ class IndexGcsPath(webapp2.RequestHandler):
 
 class IndexDeleteResource(webapp2.RequestHandler):
     def get(self):
-        index_name, namespace, id, resource = \
+        index_name, namespace, id, resource, dryrun = \
             map(self.request.get,
-                ['index_name', 'namespace', 'id', 'resource'])
+                ['index_name', 'namespace', 'id', 'resource', 'dryrun'])
         index = search.Index(index_name, namespace=namespace)
 
         if id:
             docs = index.get_range(start_id=id, ids_only=True, limit=100,
-                                   include_start_object=True)
+                                   include_start_object=True).results
         else:
             docs = index.get_range(ids_only=True, limit=100).results
         if len(docs) < 1:
             return
 
         # Filter out doc_ids that don't contain resource:
-        ids = filter(lambda doc: resource in doc.doc_id, docs)
+        ids = [doc.doc_id for doc in docs if resource in doc.doc_id]
+
+        blast, next_id = None, None
 
         if len(ids) < 1:  # Didn't find any matches in this batch.
-            next_id = ids[-1]
+            if len(docs) == 100:
+                next_id = docs[-1].doc_id
+        elif len(ids) == 1:
+            if not dryrun:
+                index.delete(ids[0])
+            else:
+                logging.info('index.delete(%s)' % ids[0])
+            if len(docs) < 100:
+                    return
+            else:
+                next_id = docs[-1].doc_id
         else:  # Matches found, delete them.
             blast, next_id = ids[:-1], ids[-1]
-            index.delete(blast)
+            if not dryrun:
+                index.delete(blast)
+            else:
+                logging.info('index.delete(%s) - NEXT %s' %
+                            (json.dumps(blast, sort_keys=True, indent=4,
+                                        separators=(',', ': ')), next_id))
+
         params = dict(index_name=index_name, namespace=namespace, id=next_id,
                       resource=resource)
+        if dryrun:
+            params['dryrun'] = 1
+
         if len(docs) >= 100:
             taskqueue.add(url='/index-delete-resource', params=params,
                           queue_name="index-delete-resource")
@@ -175,8 +197,10 @@ routes = [
     webapp2.Route(r'/list-indexes', handler='indexer.ListIndexes:get'),
     webapp2.Route(r'/bootstrap-gcs', handler='indexer.BootstrapGcs:get'),
     webapp2.Route(r'/index-gcs-path', handler='indexer.IndexGcsPath:get'),
-    webapp2.Route(r'/index-gcs-path-finalize', handler='indexer.IndexGcsPath:finalize'),
-    webapp2.Route(r'/index-delete-resource', handler='indexer.IndexDeleteResource:get'),
+    webapp2.Route(r'/index-gcs-path-finalize',
+                  handler='indexer.IndexGcsPath:finalize'),
+    webapp2.Route(r'/index-delete-resource',
+                  handler='indexer.IndexDeleteResource:get'),
 ]
 
 handler = webapp2.WSGIApplication(routes, debug=IS_DEV)
