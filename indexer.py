@@ -170,6 +170,20 @@ class IndexDeleteResource(webapp2.RequestHandler):
             taskqueue.add(url='/index-delete-resource', params=params,
                           queue_name="index-delete-resource")
 
+class IndexDeleteRecord(webapp2.RequestHandler):
+    def get(self):
+        index_name, namespace, id = \
+            map(self.request.get,
+                ['index_name', 'namespace', 'id'])
+        index = search.Index(index_name, namespace=namespace)
+
+        if id:
+            doc = index.get(id)
+            if doc:
+                index.delete(id)
+                logging.info('Deleting DOC_ID %s from index %s.%s' % (id, namespace, index_name) )
+            else:
+                logging.info('DOC_ID %s not found in index %s.%s' % (id, namespace, index_name) )
 
 routes = [
     webapp2.Route(r'/list-indexes', handler='indexer.ListIndexes:get'),
@@ -177,6 +191,7 @@ routes = [
     webapp2.Route(r'/index-gcs-path', handler='indexer.IndexGcsPath:get'),
     webapp2.Route(r'/index-gcs-path-finalize', handler='indexer.IndexGcsPath:finalize'),
     webapp2.Route(r'/index-delete-resource', handler='indexer.IndexDeleteResource:get'),
+    webapp2.Route(r'/index-delete-record', handler='indexer.IndexDeleteRecord:get'),
 ]
 
 handler = webapp2.WSGIApplication(routes, debug=IS_DEV)
