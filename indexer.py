@@ -222,6 +222,138 @@ class IndexDeleteResource(webapp2.RequestHandler):
             if dryrun:
                 logging.info('Queuing task with params %s because len(docs)=%s >= 100' % (params, len(docs)) )
 
+class IndexDeleteResource2(webapp2.RequestHandler):
+    def get(self):
+        index_name, namespace, resource, id, batch_size, ndeleted, max_delete, dryrun = \
+            map(self.request.get,
+                ['index_name', 'namespace', 'resource', 'id', 'batch_size', 'ndeleted', 'max_delete', 'dryrun'])
+        index = search.Index(index_name, namespace=namespace)
+        if dryrun:
+            logging.info('\n===IndexDeleteResource2(id=%s, %s, %s, %s, %s, %s, %s, %s)===' % (id, namespace, index_name, resource, batch_size, ndeleted, max_delete, dryrun))
+
+        deleted_so_far=0
+        if ndeleted is not None and ndeleted != '':
+            deleted_so_far = int(ndeleted)
+        bsize=200
+        if batch_size is not None and batch_size != '':
+            bsize = int(batch_size)
+        if max_delete is None or max_delete == '':
+            maxdel = deleted_so_far + bsize + 1
+        else:
+            maxdel = int(max_delete)
+        
+        to_delete = bsize
+        if maxdel < deleted_so_far + bsize:
+            to_delete = maxdel - deleted_so_far
+
+        if id:
+            docs = index.get_range(start_id=id, ids_only=True, limit=to_delete+1,
+                                   include_start_object=True).results
+            if dryrun:
+                logging.info('index.get_range(start_id=%s, ids_only=True, limit=%s, include_start_object=True)' 
+                          % (id, to_delete+1) )
+        else:
+            docs = index.get_range(ids_only=True, limit=to_delete+1).results
+            if dryrun:
+                logging.info('index.get_range(ids_only=True, limit=%s)' % (to_delete+1) )
+
+        if len(docs) < 1:
+            if dryrun:
+                logging.info('No documents left to index.' )
+            return
+
+        if dryrun:
+            alldocs = [doc.doc_id for doc in docs]
+            logging.info('Got %s documents. First: %s\nLast:%s' % ( len(alldocs), alldocs[0], alldocs[-1]) )
+#            logging.info('Got %s documents: %s' %
+#                        (len(docs), json.dumps(alldocs, sort_keys=True, indent=4,
+#                         separators=(',', ': ')) ))
+        ids = [doc.doc_id for doc in docs if resource in doc.doc_id]
+        next_id = docs[-1].doc_id
+        delete_these = []
+        if len(ids) <= bsize :
+            delete_these = ids
+        else:
+            delete_these = ids[:-1]
+
+        if dryrun:
+            logging.info('Deleting %s documents. First: %s\nLast:%s' % ( len(delete_these), delete_these[0], delete_these[-1]) )
+#            logging.info('index.delete(%s)' %
+#                        (json.dumps(delete_these, sort_keys=True, indent=4,
+#                         separators=(',', ': ')) ))
+
+        else:
+            # Delete all but the last document, which is the key for where to start next.
+            index.delete(delete_these)
+   
+        deleted_so_far = deleted_so_far + len(delete_these)
+        
+        params = dict(index_name=index_name, namespace=namespace, batch_size=batch_size, 
+                    max_delete=max_delete, ndeleted=deleted_so_far, resource=resource, 
+                    id=next_id)
+        if dryrun:
+            params['dryrun'] = 1
+
+        if deleted_so_far < maxdel and len(delete_these)==bsize:
+            logging.info('Queuing task index-delete-resource2 with params %s' % (params) )
+            taskqueue.add(url='/index-delete-resource2', params=params, queue_name="index-delete-resource2")
+        else:
+            logging.info('Finished index-delete-resource2 on index %s.%s. Removed %s documents.' % (namespace, index_name, deleted_so_far) )
+                     
+class IndexDeleteResource3(webapp2.RequestHandler):
+    def get(self):
+        index_name, namespace, icode, classs, batch_size, ndeleted, max_delete, dryrun = \
+            map(self.request.get,
+                ['index_name', 'namespace', 'icode', 'classs', 'batch_size', 'ndeleted', 'max_delete', 'dryrun'])
+        if dryrun:
+            logging.info('\n===IndexDeleteResource3(id=%s, %s, %s, %s, %s, %s, %s, %s)===' % (icode, classs, namespace, index_name, batch_size, ndeleted, max_delete, dryrun))
+
+        deleted_so_far=0
+        if ndeleted is not None and ndeleted != '':
+            deleted_so_far = int(ndeleted)
+        bsize=200
+        if batch_size is not None and batch_size != '':
+            bsize = int(batch_size)
+        if max_delete is None or max_delete == '':
+            maxdel = deleted_so_far + bsize + 1
+        else:
+            maxdel = int(max_delete)
+        
+        query = 'institutioncode:%s class:%s' % (icode, classs)
+        try:
+            # Define the query by using a Query object.
+            query = search.Query(query, options=search.QueryOptions(limit=bsize, ids_only=True) )
+            index = search.Index(index_name, namespace=namespace)
+            docs = index.search(query)
+        except search.Error:
+            logging.exception('Search ERROR on query: %s' % (query) )
+
+        ids = [doc.doc_id for doc in docs]
+
+        if len(ids) < 1:
+            logging.info('No documents for icode=%s class=%s left to delete in index%s.%s.' % (icode, classs, namspace, index_name) )
+            return
+
+        if dryrun:
+            logging.info('Deleting %s documents.\nFirst: %s\nLast:  %s' % ( len(ids), ids[0], ids[-1]) )
+        else:
+            index.delete(ids)
+   
+        deleted_so_far = deleted_so_far + len(ids)
+        
+        params = dict(index_name=index_name, namespace=namespace, 
+                      batch_size=batch_size, max_delete=max_delete, 
+                      ndeleted=deleted_so_far, icode=icode, classs=classs)
+
+        if dryrun:
+            params['dryrun'] = 1
+
+        if deleted_so_far < maxdel and len(ids)==bsize:
+            logging.info('Queuing task index-delete-resource3 with params %s' % (params) )
+            taskqueue.add(url='/index-delete-resource3', params=params, queue_name="index-delete-resource3")
+        else:
+            logging.info('Finished index-delete-resource-by-inst-code on index %s.%s. Removed %s documents.' % (namespace, index_name, deleted_so_far) )
+                     
 class IndexClean(webapp2.RequestHandler):
     def get(self):
         index_name, namespace, id, batch_size, ndeleted, max_delete, dryrun = \
@@ -229,7 +361,7 @@ class IndexClean(webapp2.RequestHandler):
                 ['index_name', 'namespace', 'id', 'batch_size', 'ndeleted', 'max_delete', 'dryrun'])
         index = search.Index(index_name, namespace=namespace)
         if dryrun:
-            logging.info('========IndexClean(id=%s, %s, %s, %s, %s, %s, %s)========' % (id, namespace, index_name, batch_size, ndeleted, max_delete, dryrun))
+            logging.info('\n========InstClean(id=%s, %s, %s, %s, %s, %s, %s)========' % (id, namespace, index_name, batch_size, ndeleted, max_delete, dryrun))
 
         deleted_so_far=0
         if ndeleted is not None and ndeleted != '':
@@ -274,7 +406,7 @@ class IndexClean(webapp2.RequestHandler):
             delete_these = ids[:-1]
 
         if dryrun:
-            logging.info('Matching documents in batch, len(ids)=%s' % len(delete_these) )
+            logging.info('Matching documents in batch, len(delete_these)=%s' % len(delete_these) )
             logging.info('index.delete(%s)' %
                         (json.dumps(delete_these, sort_keys=True, indent=4,
                          separators=(',', ': ')) ))
@@ -291,10 +423,10 @@ class IndexClean(webapp2.RequestHandler):
             params['dryrun'] = 1
 
         if deleted_so_far < maxdel and len(delete_these)==bsize:
+            logging.info('Queuing index-clean task with params %s' % (params) )
             taskqueue.add(url='/index-clean', params=params, queue_name="index-clean")
-            logging.info('len(docs)=%s, bsize=%s. Queuing task with params %s' % (len(ids), bsize, params) )
         else:
-            logging.info('Finished cleaning index %s.%s. Removed %s documents.' % (namespace, index_name, deleted_so_far) )
+            logging.info('Finished index-clean on index %s.%s. Removed %s documents.' % (namespace, index_name, deleted_so_far) )
                      
 class IndexDeleteRecord(webapp2.RequestHandler):
     def get(self):
@@ -329,6 +461,8 @@ routes = [
     webapp2.Route(r'/index-gcs-path', handler='indexer.IndexGcsPath:get'),
     webapp2.Route(r'/index-gcs-path-finalize', handler='indexer.IndexGcsPath:finalize'),
     webapp2.Route(r'/index-delete-resource', handler='indexer.IndexDeleteResource:get'),
+    webapp2.Route(r'/index-delete-resource2', handler='indexer.IndexDeleteResource2:get'),
+    webapp2.Route(r'/index-delete-resource3', handler='indexer.IndexDeleteResource3:get'),
     webapp2.Route(r'/index-delete-record', handler='indexer.IndexDeleteRecord:get'),
     webapp2.Route(r'/index-clean', handler='indexer.IndexClean:get'),
     webapp2.Route(r'/namespace-info', handler='indexer.NamespaceInfo:get'),

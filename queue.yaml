@@ -16,7 +16,7 @@
 # Queue configuration for the app:
 total_storage_limit: 120M
 queue:
-- name: index-delete-resource
+- name: index-delete-resource3
   rate: 35/s
 - name: index-clean
   rate: 35/s
