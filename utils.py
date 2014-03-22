@@ -8,6 +8,8 @@ from mapreduce import operation as op
 import re
 import htmlentitydefs
 import os
+import codecs
+import unicodedata
 from google.appengine.api import files
 from mapreduce import context
 
@@ -261,7 +263,8 @@ def get_rec_dict(rec):
         return log
 
 def handle_failed_index_put(data, resource, did, write_path, mrid):
-    logging.info('Handling failed index.put() - mrid:%s did:%s write_path:%s' % (mrid, did, write_path))
+    logging.info('Handling failed index.put() - mrid:%s did:%s write_path:%s' % 
+                (mrid, did, write_path))
     max_retries = 5
     retry_count = 0
 
@@ -276,7 +279,8 @@ def handle_failed_index_put(data, resource, did, write_path, mrid):
                 logging.info('Successfully logged failure to GCS for %s' % did)
                 return
         except:
-            logging.error('Failure %s of %s to write line to failure log: %s' % (retry_count, max_retries, line))
+            logging.error('Failure %s of %s to write line to failure log: %s' % 
+                         (retry_count, max_retries, line))
             retry_count += 1
 
     logging.critical('Failed to index and failed to log %s' % did)
@@ -301,41 +305,74 @@ def verbatim_dwc(rec, keyname):
   return rec
 
 def index_record(data, index_name, namespace, issue=None):
-    county, stateprov, year, genus, icode, country, specep, lat, lon, catnum, collname, classs, family, url = map(data.get, 
-        ['county', 'stateprovince', 'year', 'genus', 'icode', 'country', 'specificepithet', 
-        'decimallatitude', 'decimallongitude', 'catalognumber', 'recordedby', 'classs', 'family', 'url'])
+    icode, ccode, catnum, occid, \
+    country, stateprov, county, \
+    classs, order, family, genus, specep, \
+    lat, lon, \
+    year, collname, url = map(data.get, 
+        ['icode', 'collectioncode', 'catalognumber', 'id',
+         'country', 'stateprovince', 'county',
+         'classs', 'order', 'family', 'genus', 'specificepithet', 
+         'decimallatitude', 'decimallongitude', 
+         'year', 'recordedby', 'url'])
 
     if data.has_key('classs'):        
         data.pop('classs')
 
     data['class'] = classs
-    organization_slug = slugify(data['orgname'])
+
     resource_slug = slugify(data['title'])
-    keyname = '%s/%s/%s' % (organization_slug, resource_slug, data['harvestid'])
+    icode_slug = slugify(icode)
+    
+    coll_id = ''
+    if ccode is not None and len(ccode) > 0:
+        coll_id = re.sub("\'",'',repr(slugify(ccode)))
+    else:
+        coll_id = re.sub("\'",'',repr(resource_slug))
+    
+    occ_id = ''
+    if catnum is not None and len(catnum) > 0:        
+        occ_id = re.sub("\'",'',repr(slugify(data['catalognumber'])))
+    else:
+        if occid is not None and len(occid) > 0:
+            occ_id = 'oid-%s' % re.sub("\'",'',repr(occid))
+        else:
+            occ_id = 'hid-%s' % data['harvestid']
+
+    res_id = '%s/%s' % (icode_slug, resource_slug)
+    keyname = '%s/%s/%s' % (icode_slug, coll_id, occ_id)
+#    oldkeyname = '%s/%s/%s' % (organization_slug, resource_slug, data['harvestid'])
+
     data['keyname'] = keyname
     
     doc = search.Document(
         doc_id=keyname,
         rank=rank(data),
-		fields=[search.TextField(name='year', value=year),
-                search.TextField(name='genus', value=genus),
+		fields=[
                 search.TextField(name='institutioncode', value=icode),
+                search.TextField(name='resource', value=res_id),
+                search.TextField(name='catalognumber', value=catnum),
+                search.TextField(name='occurrenceid', value=occid),
                 search.TextField(name='country', value=country),
                 search.TextField(name='stateprovince', value=stateprov),
                 search.TextField(name='county', value=county),
-                search.TextField(name='specificepithet', value=specep),
-                search.TextField(name='catalognumber', value=catnum),
-                search.TextField(name='recordedby', value=collname),
                 search.TextField(name='class', value=classs),
+                search.TextField(name='order', value=order),
                 search.TextField(name='family', value=family),
+                search.TextField(name='genus', value=genus),
+                search.TextField(name='specificepithet', value=specep),
+		        search.TextField(name='year', value=year),
+                search.TextField(name='recordedby', value=collname),
                 search.TextField(name='type', value=_type(data)),
                 search.TextField(name='url', value=url),
                 search.NumberField(name='media', value=has_media(data)),
                 search.NumberField(name='tissue', value=has_tissue(data)),
                 search.NumberField(name='hastypestatus', value=has_typestatus(data)),
                 search.NumberField(name='rank', value=rank(data)),
-                search.TextField(name='verbatim_record', value=json.dumps(verbatim_dwc(data, keyname))),
-                search.TextField(name='record', value=json.dumps(full_text_key_trim(data)))])
+                search.TextField(name='verbatim_record', 
+                                 value=json.dumps(verbatim_dwc(data, keyname))),
+                search.TextField(name='record', 
+                                 value=json.dumps(full_text_key_trim(data)))])
 
     location = _location(lat, lon)
     eventdate = _eventdate(year)
@@ -382,8 +419,7 @@ def build_search_index(entity):
         data = get_rec_dict(dict(zip(HEADER, entity.split('\t'))))
         index_record(data, index_name, namespace)
     except Exception, e:
-        logging.error('%s\n%s' % (e, entity))
-
+        logging.error('%s\n%s' % (e, data))
 
 def _get_rec(doc):
     for field in doc.fields:
