@@ -100,62 +100,152 @@ NON_DWC_HEADER_KEYS = [
 'relationshipestablisheddate', 'relationshipofresource', 'relationshipremarks', 
 'resourceid', 'resourcerelationshipid']
 
-def is_number(s):
+def is_float(str):
+    """Return the value of str as a float if possible, otherwise return None."""
+    # Accepts str as string. Returns float(str) or None
+    if str is None:
+        return None
     try:
-        float(s)
-        return True
+        f = float(str)
+        return f
     except ValueError:
-        return False    
+        return None
  
-def valid_latlng(lat,lng):
-    # accepts lat and lng as strings.
-    if not is_number(lat):
+def valid_year(year):
+    """Return True if the year is since 1700 and before next year, otherwise return False."""
+    # Accepts year as string.
+    fyear = is_float(year)
+    if fyear is None:
         return False
-    if not is_number(lng):
+    if fyear < 1699:
         return False
-    flat = float(lat)
-    if flat < -90 or flat > 90:
-        return False
-    flng = float(lng)
-    if flng < -180 or flng > 180:
+    if fyear > datetime.now().year:
         return False
     return True
  
-def valid_georef(rec):
+def valid_month(month):
+    """Return True if the month is between 1 and 12 inclusive, otherwise return False."""
+    # Accepts month as string.
+    fmonth = is_float(month)
+    if fmonth is None:
+        return False
+    if fmonth < 1:
+        return False
+    if fmonth > 12:
+        return False
+    return True
+ 
+def valid_day(day):
+    """Return True if the day is between 1 and 31 inclusive, otherwise return False."""
+    # Accepts day as string.
+    fday = is_float(day)
+    if fday is None:
+        return False
+    if fday < 1:
+        return False
+    if fday > 31:
+        return False
+    return True
+ 
+def valid_latlng(lat,lng):
+    """Return True if lat and lng are in valid ranges, otherwise return False."""
+    # Accepts lat and lng as strings.
+    flat = is_float(lat)
+    if flat is None:
+        return False
+    if flat < -90 or flat > 90:
+        return False
+    flng = is_float(lng)
+    if flng is None:
+        return False
+    if flng < -180 or flng > 180:
+        return False
+    if flat == 0 and flng == 0:
+        return False
+    return True
+ 
+def valid_coords(rec):
+    """Return True if decimallatitude and decimallongitude in rec are in valid ranges, otherwise return False."""
     if rec.has_key('decimallatitude'):
         if rec.has_key('decimallongitude'):
             return valid_latlng(rec['decimallatitude'],rec['decimallongitude'])
     return False
  
-def valid_binomial(rec):
-    if rec.has_key('genus'):
-      if rec.has_key('specificepithet'):
-        # Sufficient condition for now to have these DwC terms populated.
-        # Later may want to test them against a name authority to determine validity.
-        return True
-    return False
+def valid_georef(rec):
+    """Return True if rec has valid coords, valid coordinateuncertaintyinmeters, and a geodeticdatum, otherwise return False."""
+    if rec.has_key('coordinateuncertaintyinmeters') is False:
+        return False
+    if rec.has_key('geodeticdatum') is False:
+        return False
+    if _coordinateuncertaintyinmeters(rec['coordinateuncertaintyinmeters']) is None:
+        return False
+    if rec.has_key('decimallatitude') is False:
+        return False
+    if rec.has_key('decimallongitude') is False:
+        return False
+    return valid_latlng(rec['decimallatitude'],rec['decimallongitude'])
  
-def rank(rec):
+def valid_binomial(rec):
+    """Return True if rec has a genus and specificepithet, otherwise return False."""
+    if rec.has_key('genus') is False:
+        return False
+    if rec.has_key('specificepithet') is False:
+        return False
+    # Sufficient condition for now to have these DwC terms populated.
+    # Later may want to test them against a name authority to determine validity.
+    return True
+ 
+def _rank(rec):
+    """Return the rank to be used in document sorting based on the content priority."""
+    hasbinomial = valid_binomial(rec)
+    if hasbinomial is False:
+        return 0
+    # Must have a binomial to have a rank.
     rank = 0
-    if valid_georef(rec) is True and valid_binomial(rec) is True:
+    hasgeoref = valid_georef(rec)
+    hascoords = False
+    if hasgeoref is True:
+        hascoords = True
+    else:
+        hascoords = valid_coords(rec) 
+    hasyear = False
+    if rec.has_key('year'):
+        hasyear = valid_year(rec['year'])
+    hasmonth = False
+    if rec.has_key('month'):
+        hasmonth = valid_month(rec['month'])
+    hasday = False
+    if rec.has_key('day'):
+        hasday = valid_day(rec['day'])
+    
+    if hasgeoref is True:
+        rank = 9
+        if hasyear is True:
+            rank = 10
+            if hasmonth is True:
+                rank = 11
+                if hasday is True:
+                    rank = 12
+    elif hascoords is True:
         rank = 5
-        if rec.has_key('year'):
+        if hasyear is True:
             rank = 6
-            if rec.has_key('month'):
+            if hasmonth is True:
                 rank = 7
-                if rec.has_key('day'):
+                if hasday is True:
                     rank = 8
-    elif valid_binomial(rec) is True:
+    else:
         rank = 1
-        if rec.has_key('year'):
+        if hasyear is True:
             rank = 2
-            if rec.has_key('month'):
-                rank = 3
-                if rec.has_key('day'):
+            if hasmonth is True:
+                rank = 2
+                if hasday is True:
                     rank = 4
     return rank
 
 def has_media(rec):
+    """Return 1 if the rec represents a media record or has associated media, otherwise return 0."""
     if rec.has_key('associatedmedia'):
         return 1
     if rec.has_key('type'):
@@ -170,23 +260,26 @@ def has_media(rec):
     return 0
 
 tissuetokens = ["+t", "tiss", "tissue", "blood", "dmso", "dna", "extract", "froze", 
-                "forzen", "freez", "heart", "muscle", "higado", "kidney",
+                "forzen", "freez", "freeze", "heart", "muscle", "higado", "kidney",
                 "liver", "lung", "nitrogen", "pectoral", "rinon",
                 "kidney", "rnalater", "sample", "sangre", "toe", "spleen"]
 
 def has_tissue(rec):
+    """Return 1 if the rec represents a record that has preparations that might be viable tissues, otherwise return 0."""
     if rec.has_key('preparations'):
+        preps = rec['preparations'].lower()
         for token in tissuetokens:
-            if token in rec['preparations'].lower():
+            if token in preps:
                 return 1
     return 0
 
 def has_typestatus(rec):
+    """Return 1 if the rec has the typestatus field populated, otherwise return 0."""
     if rec.has_key('typestatus'):
-        if rec['typestatus'] is not None:
-            return 1
+        return 1
     return 0
 
+# This function may not longer be in use.
 def network(rec, network):
     if rec.has_key('networks'):
         networks = [x.lower() for x in rec['networks'].split(',')]
@@ -194,7 +287,20 @@ def network(rec, network):
             return 1
     return 0
 
+def _coordinateuncertaintyinmeters(unc):
+    """Return the value of unc as a rounded up integer if it is a number greater than zero, otherwise return None."""
+    uncertaintyinmeters = is_float(unc)
+    if uncertaintyinmeters is None:
+        return None
+    # Check to see if uncertaintyinmeters is less than one. Zero is not a legal 
+    # value. Less than one is an error in concept.
+    if uncertaintyinmeters < 1:
+        return None
+    # Return the nearest rounded up meter.
+    return int( round(uncertaintyinmeters + 0.5) )
+
 def _location(lat, lon):
+    """Return a GeoPoint representation of lat and long if possible, otherwise return None."""
     try:
         location = apply(search.GeoPoint, map(float, [lat, lon]))
     except:
@@ -202,6 +308,7 @@ def _location(lat, lon):
     return location
 
 def _type(rec):
+    """Return one of 'specimen', 'observation', or 'both' based on content of the type and basisofrecord fields."""
     if rec.has_key('type'):
         if rec['type'].lower() == 'physicalobject':
             return 'specimen'
@@ -212,18 +319,70 @@ def _type(rec):
         return 'observation'
     return 'both'
 
+# This function may no longer be in use.
 def _rec(rec):
+    """Remove the listed field from rec."""
     for x in ['pubdate','url','eml','dwca','title','icode','description',
         'contact','orgname','email','emlrights','count','citation','networks','harvestid']:
         rec.pop(x)
     return json.dumps(rec)
 
-def _eventdate(year):
-    try:
-        eventdate = datetime.strptime(year, '%Y').date()
-    except:
-        eventdate = None
+def eventdate_from_ymd(y,m,d):
+    """Return the eventdate as ISO8601 based on year y, month m, and day d as strings."""
+    if valid_year(y) is False:
+        return None
+    hasmonth = valid_month(m)
+    hasday = valid_day(d)
+    eventdate = y
+    if hasmonth is True:
+        month = is_float(m)
+        if month is not None:
+            if month > 9:
+                eventdate += '-'+m
+            else:
+                eventdate += '-0'+m
+            if hasday is True:
+                day = is_float(d)
+                if day is not None:
+                    if day > 9:
+                        eventdate += '-'+d
+                    else:
+                        eventdate += '-0'+d
     return eventdate
+    
+def _eventdate(rec):
+    """Return the eventdate as a datetime.date based on a eventdate if it is a datetime, otherwise on year, month, and day converted to ISO8601."""
+    isodate = None
+    if rec.has_key('eventdate'):
+        isodate = rec['eventdate']
+    else:
+        if rec.has_key('year') is False or rec.has_key('month') is False or rec.has_key('day') is False:
+            return None
+            y = rec['year']
+            m = rec['month']
+            d = rec['day']
+            isodate = eventdate_from_ymd(y,m,d)
+    
+    try:
+        eventdate = datetime.strptime(isodate, '%Y-%m-%d').date()
+    except:
+        eventdate = None        
+    return eventdate
+
+#def _eventdate(rec):
+#    """Return the eventdate as a string based on a eventdate if it exists, otherwise on year, month, and day converted to ISO8601."""
+#    if rec.has_key('eventdate'):
+#        return rec['eventdate']
+#    if rec.has_key('year') is False:
+#        return None
+#    y = rec['year']
+#    m = None
+#    d = None
+#    if rec.has_key('month') is True:
+#        m = rec['month']
+#    if rec.has_key('day') is True:
+#        m = rec['day']
+#    return eventdate_from_ymd(y,m,d)
 
 def slugify(s, length=None, separator="-"):
     """Return a slugged version of supplied string."""
@@ -247,12 +406,15 @@ def slugify(s, length=None, separator="-"):
     return ret.strip()
 
 def get_rec_dict(rec):
+    """Returns a dictionary of all fields in the rec list with non-printing characters removed."""
     val = {}
     for name, value in rec.iteritems():
         if value:
         	# Replace all tabs, vertical tabs, carriage returns, and line feeds 
         	# in field contents with space, then remove leading and trailing spaces.
             val[name] = re.sub('[\v\t\r\n]+', ' ', value).strip(' ')
+#            if val[name]=='':
+#                rec.pop(name)
     return val
 
     @classmethod
@@ -289,47 +451,54 @@ def handle_failed_index_put(data, resource, did, write_path, mrid):
     job.failed_logs.append(did)
     job.put()
 
-# Return a record with non-full-text-indexed terms removed.
 def full_text_key_trim(rec):
-  for key in rec.keys():
-    if key not in FULL_TEXT_KEYS:
-      rec.pop(key)
-  return rec
+    """Returns a record rec with non-full-text-indexed terms removed."""
+    for key in rec.keys():
+        if key not in FULL_TEXT_KEYS:
+            rec.pop(key)
+    return rec
 
-# Return a record with verbatim original Darwin Core fields plus the keyname field.
 def verbatim_dwc(rec, keyname):
-  # for key in rec.keys():
-  #   if key in NON_DWC_HEADER_KEYS:
-  #     rec.pop(key)
-  rec['keyname'] = keyname
-  return rec
+    """Returns a record with verbatim original Darwin Core fields plus the keyname field, minus any empty fields."""
+    for key in rec.keys():
+        if rec[key] == '':
+            rec.pop(key)
+    rec['keyname'] = keyname
+    return rec
 
-def index_record(data, index_name, namespace, issue=None):
-    icode, ccode, catnum, occid, \
-    country, stateprov, county, \
+def index_record(data, issue=None):
+    """Creates a document ready to index from the given input data. This is where the work is to construct the document."""
+    icode, collcode, catnum, occid, \
+    continent, country, stateprov, county, islandgroup, island, \
     classs, order, family, genus, specep, \
-    lat, lon, \
-    year, collname, url = map(data.get, 
+    lat, lon, uncertainty, datum, \
+    year, collname, url, pubdate = map(data.get, 
         ['icode', 'collectioncode', 'catalognumber', 'id',
-         'country', 'stateprovince', 'county',
+         'continent', 'country', 'stateprovince', 'county', 'islandgroup', 'island',
          'classs', 'order', 'family', 'genus', 'specificepithet', 
-         'decimallatitude', 'decimallongitude', 
-         'year', 'recordedby', 'url'])
+         'decimallatitude', 'decimallongitude', 'coordinateuncertaintyinmeters', 'geodeticdatum',
+         'year', 'recordedby', 'url', 'pubdate'])
 
+    # Trim any empty data fields from the verbatim record
+    
+    # Translate the field 'classs' to field 'class'
     if data.has_key('classs'):        
         data.pop('classs')
-
     data['class'] = classs
 
+    # Create a slugged version of the resource title as a resource identifier
     resource_slug = slugify(data['title'])
-    icode_slug = slugify(icode)
     
+    icode_slug = re.sub(" ","", icode.lower())
+    
+    # Make a coll_id as slugged ascii of the collection for use in document id.
     coll_id = ''
-    if ccode is not None and len(ccode) > 0:
-        coll_id = re.sub("\'",'',repr(slugify(ccode)))
+    if collcode is not None and collcode != '':
+        coll_id = re.sub(' ','', re.sub("\'",'',repr(collcode)).lower())
     else:
         coll_id = re.sub("\'",'',repr(resource_slug))
     
+    # Make a occ_id as slugged ascii of the record identifier for use in document id.
     occ_id = ''
     if catnum is not None and len(catnum) > 0:        
         occ_id = re.sub("\'",'',repr(slugify(data['catalognumber'])))
@@ -339,64 +508,98 @@ def index_record(data, index_name, namespace, issue=None):
         else:
             occ_id = 'hid-%s' % data['harvestid']
 
+    # Make a potentially persistent resource identifier
     res_id = '%s/%s' % (icode_slug, resource_slug)
+
+    # Make a unique, potentially persistent document id
     keyname = '%s/%s/%s' % (icode_slug, coll_id, occ_id)
 #    oldkeyname = '%s/%s/%s' % (organization_slug, resource_slug, data['harvestid'])
 
     data['keyname'] = keyname
-    
+
+    # Determine any values for indexing that must be calculated before creating doc
+    # because full_text_key_trim(data) affects the contents of data.
+    recrank = _rank(data)
+    location = _location(lat, lon)
+    unc = _coordinateuncertaintyinmeters(uncertainty)
+    eventdate = _eventdate(data)
+    fyear = is_float(year)
+
+#    if location is not None:
+#        logging.info('%s %s location: %s unc:%s datum: %s georefed: %s rank: %s\n%s' %
+#                    (icode, catnum, location, unc, datum, valid_georef(data), recrank, data ) )
+
+    # Of the fields to index, the following are essential, while all others are probably
+    # sufficiently covered by full text indexing on the record field:
+    # institutioncode, resource, catalognumber, year, type, media, tissue, hastypestatus, 
+    # rank, record.
+    # pubdate would be useful for being able to reindex a single resource - because 
+    # search.Index().put(doc) replaces docs with matching doc_ids. Then one would only
+    # need to remove any records from that resource with an older pubdate as opposed to 
+    # deleting all records from the resource.
+    # The problem is that pubdate is currently populated with the  date the 
+    # resource was first published, not the date it was last published.
     doc = search.Document(
         doc_id=keyname,
-        rank=rank(data),
+        rank=recrank,
 		fields=[
                 search.TextField(name='institutioncode', value=icode),
                 search.TextField(name='resource', value=res_id),
                 search.TextField(name='catalognumber', value=catnum),
                 search.TextField(name='occurrenceid', value=occid),
+                search.TextField(name='continent', value=continent),
                 search.TextField(name='country', value=country),
                 search.TextField(name='stateprovince', value=stateprov),
                 search.TextField(name='county', value=county),
+                search.TextField(name='island', value=island),
+                search.TextField(name='islandgroup', value=islandgroup),
                 search.TextField(name='class', value=classs),
                 search.TextField(name='order', value=order),
                 search.TextField(name='family', value=family),
                 search.TextField(name='genus', value=genus),
                 search.TextField(name='specificepithet', value=specep),
-		        search.TextField(name='year', value=year),
                 search.TextField(name='recordedby', value=collname),
                 search.TextField(name='type', value=_type(data)),
-                search.TextField(name='url', value=url),
+#                search.TextField(name='url', value=url),
+                search.TextField(name='pubdate', value=pubdate),
                 search.NumberField(name='media', value=has_media(data)),
                 search.NumberField(name='tissue', value=has_tissue(data)),
                 search.NumberField(name='hastypestatus', value=has_typestatus(data)),
-                search.NumberField(name='rank', value=rank(data)),
+                search.NumberField(name='rank', value=recrank),
                 search.TextField(name='verbatim_record', 
                                  value=json.dumps(verbatim_dwc(data, keyname))),
+    # Note that full_text_key_trim pops values from data, making them unavailable to
+    # for use hereafter in this function.
                 search.TextField(name='record', 
                                  value=json.dumps(full_text_key_trim(data)))])
 
-    location = _location(lat, lon)
-    eventdate = _eventdate(year)
-
-    if location:
+    mappable = 0
+    if location is not None:
         doc.fields.append(search.GeoField(name='location', value=location))
-        doc.fields.append(search.NumberField(name='mappable', value=1))
-    else:
-        doc.fields.append(search.NumberField(name='mappable', value=0))
+        mappable = 1
+    doc.fields.append(search.NumberField(name='mappable', value=mappable))
 
-    if eventdate:
+    if unc is not None:
+        doc.fields.append(search.NumberField(name='coordinateuncertaintyinmeters', value=unc))
+
+    if fyear is not None:
+        doc.fields.append(search.NumberField(name='year', value=fyear))
+
+    if eventdate is not None:
         doc.fields.append(search.DateField(name='eventdate', value=eventdate))
+    return doc
 
+def index_doc(doc, index_name, namespace, issue=None):
     max_retries = 2
     retry_count = 0
     while retry_count < max_retries:
         try:
             search.Index(index_name, namespace=namespace).put(doc)
-            return # Successfully indexed record.
+            return # Successfully indexed document.
         except Exception, e:
             logging.error('Put #%s failed for doc %s (%s)' % (retry_count, doc.doc_id, e))
             retry_count += 1
-
-    logging.error('Failed to index: %s' % data['keyname'])
+    logging.error('Failed to index: %s' % doc.doc_id)
 
     # Failed to index record, so handle it:
     # resource = '%s-%s' % (resource_slug, data['harvestid'])
@@ -417,7 +620,11 @@ def build_search_index(entity):
 
     try:
         data = get_rec_dict(dict(zip(HEADER, entity.split('\t'))))
-        index_record(data, index_name, namespace)
+#        logging.info('Did get_rec_dict() OK! data: %s' % data)
+        doc = index_record(data)
+#        logging.info('Did index_record(data) OK!! doc: %s' % doc)
+        index_doc(doc, index_name, namespace)
+#        logging.info('Did index_doc() OK!!!')
     except Exception, e:
         logging.error('%s\n%s' % (e, data))
 
