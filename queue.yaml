@@ -18,11 +18,12 @@ total_storage_limit: 120M
 queue:
 - name: index-delete-resource
   rate: 35/s
-- name: index-clean
-  rate: 35/s
 - name: apitracker
   rate: 35/s
 - name: download
   rate: 35/s
 - name: downloadwrite
   rate: 35/s
+# index-clean is dangerous - turn it on only if you really need to
+#- name: index-clean
+#  rate: 35/s

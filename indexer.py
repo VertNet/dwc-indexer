@@ -154,14 +154,14 @@ class IndexGcsPath(webapp2.RequestHandler):
 class IndexDeleteResource(webapp2.RequestHandler):
     def get(self):
         """Deletes the documents matching criteria for institution code and class."""
-        index_name, namespace, icode, classs, batch_size, ndeleted, max_delete, dryrun = \
+        index_name, namespace, resource, batch_size, ndeleted, max_delete, dryrun = \
             map(self.request.get,
-                ['index_name', 'namespace', 'icode', 'classs', 'batch_size', 'ndeleted', 
+                ['index_name', 'namespace', 'resource', 'batch_size', 'ndeleted', 
                  'max_delete', 'dryrun'])
         
         if dryrun:
-            logging.info('\n==IndexDeleteResource(%s, %s, %s, %s, %s, %s, %s, %s)==' % 
-                        (icode, classs, namespace, index_name, batch_size, ndeleted, 
+            logging.info('\n==IndexDeleteResource(%s, %s, %s, %s, %s, %s, %s)==' % 
+                        (resource, namespace, index_name, batch_size, ndeleted, 
                          max_delete, dryrun) )
 
         deleted_so_far=0
@@ -179,9 +179,7 @@ class IndexDeleteResource(webapp2.RequestHandler):
         if deleted_so_far + bsize > maxdel:
             bsize = maxdel-deleted_so_far
             
-        query = 'institutioncode:%s' % (icode)
-        if classs is not None and len(classs)>0:
-          query = query + ' class:%s' % (classs)
+        query = 'resource:%s' % (resource)
         try:
             # Define the query by using a Query object.
             query = search.Query(query, options=search.QueryOptions(limit=bsize, ids_only=True) )
@@ -193,10 +191,9 @@ class IndexDeleteResource(webapp2.RequestHandler):
         ids = [doc.doc_id for doc in docs]
 
         if len(ids) < 1:
-            logging.info('No documents for icode=%s class=%s left to delete in %s.%s.' % 
-                        (icode, classs, namespace, index_name) )
+            logging.info('No documents for resource=%s left to delete in %s.%s.' % 
+                        (resource, namespace, index_name) )
             return
-
 
         logging.info('Deleting %s documents.\nFirst: %s\nLast:  %s' % 
                     ( len(ids), ids[0], ids[-1] ) )
@@ -206,7 +203,7 @@ class IndexDeleteResource(webapp2.RequestHandler):
         
         params = dict(index_name=index_name, namespace=namespace, 
                       batch_size=batch_size, max_delete=max_delete, 
-                      ndeleted=deleted_so_far, icode=icode, classs=classs)
+                      ndeleted=deleted_so_far, resource=resource)
 
         if dryrun:
             params['dryrun'] = 1
@@ -335,7 +332,10 @@ routes = [
     webapp2.Route(r'/index-gcs-path', handler='indexer.IndexGcsPath:get'),
     webapp2.Route(r'/index-gcs-path-finalize', handler='indexer.IndexGcsPath:finalize'),
     webapp2.Route(r'/index-delete-resource', handler='indexer.IndexDeleteResource:get'),
-    webapp2.Route(r'/index-delete-record', handler='indexer.IndexDeleteRecord:get'),
-    webapp2.Route(r'/index-clean', handler='indexer.IndexClean:get'),]
+    webapp2.Route(r'/index-delete-record', handler='indexer.IndexDeleteRecord:get'),]
+
+# index-clean is dangerous. Re-implement if really needed at some point.
+#    webapp2.Route(r'/index-delete-record', handler='indexer.IndexDeleteRecord:get'),
+#    webapp2.Route(r'/index-clean', handler='indexer.IndexClean:get'),]
 
 handler = webapp2.WSGIApplication(routes, debug=IS_DEV)
