@@ -153,12 +153,22 @@ class IndexGcsPath(webapp2.RequestHandler):
                      
 class IndexDeleteResource(webapp2.RequestHandler):
     def get(self):
-        """Deletes the documents matching criteria for institution code and class."""
+        """Deletes the documents matching criteria for resource."""
         index_name, namespace, resource, batch_size, ndeleted, max_delete, dryrun = \
             map(self.request.get,
                 ['index_name', 'namespace', 'resource', 'batch_size', 'ndeleted', 
                  'max_delete', 'dryrun'])
         
+        body = 'Deleting resource:<br>'
+        body += 'Namespace: %s<br>' % namespace
+        body += 'Index_name: %s<br>' % index_name
+        body += 'Resource: %s<br>' % resource
+        body += 'Batch size: %s<br>' % batch_size
+        body += 'Max delete: %s<br>' % max_delete
+        body += 'Dry run: %s<br>' % dryrun
+        logging.info(body)
+        self.response.out.write(body)
+
         if dryrun:
             logging.info('\n==IndexDeleteResource(%s, %s, %s, %s, %s, %s, %s)==' % 
                         (resource, namespace, index_name, batch_size, ndeleted, 
@@ -179,16 +189,32 @@ class IndexDeleteResource(webapp2.RequestHandler):
         if deleted_so_far + bsize > maxdel:
             bsize = maxdel-deleted_so_far
             
-        query = 'resource:%s' % (resource)
-        try:
+        querystr = 'resource:%s' % (resource)
+        max_retries = 3
+        retry_count = 0
+        error = None
+        no_ids = True
+        logging.info('Query: %s namespace: %s index: %s' % (querystr, namespace, index_name) )
+        while no_ids and retry_count < max_retries:
+          try:
             # Define the query by using a Query object.
-            query = search.Query(query, options=search.QueryOptions(limit=bsize, ids_only=True) )
+            query = search.Query(querystr, options=search.QueryOptions(limit=bsize, ids_only=True) )
             index = search.Index(index_name, namespace=namespace)
+#            logging.info('Searching for docs (retry %s): namespace: %s index: %s' % (retry_count, namespace, index_name) )
             docs = index.search(query)
-        except search.Error:
-            logging.exception('Search ERROR on query: %s' % (query) )
+            ids = [doc.doc_id for doc in docs]
+            no_ids = False
+#            logging.info('Got docs: %s namespace: %s index: %s' % (ids, namespace, index_name) )
+          except search.Error, e:
+            logging.error('Search ERROR on query: %s limit: %s namespace: %s index: %s error: %s' % (querystr, bsize, namespace, index_name, e) )
+            logging.exception('Search ERROR on query: %s limit: %s namespace: %s index: %s error: %s' % (querystr, bsize, namespace, index_name, e) )
+            retry_count += 1
+            if retry_count == max_retries:
+                logging.info('Too many search errors. Aborting delete for resource %s, index %s, namespace %s' % 
+                        (resource, index_name, namespace) )
+                return
 
-        ids = [doc.doc_id for doc in docs]
+#        ids = [doc.doc_id for doc in docs]
 
         if len(ids) < 1:
             logging.info('No documents for resource=%s left to delete in %s.%s.' % 
@@ -314,17 +340,35 @@ class IndexDeleteRecord(webapp2.RequestHandler):
                 body = 'Deleting document:<br>'
                 body += 'Namespace: %s<br>' % namespace
                 body += 'Index_name: %s<br>' % index_name
-                body += 'Document id: %s<p>' % id
+                body += 'Document id: %s<br>' % id
                 logging.info(body)
                 self.response.out.write(body)
                 index.delete(id)
             else:
-                body = 'Document not found:<br>'
-                body += 'Namespace: %s<br>' % namespace
-                body += 'Index_name: %s<br>' % index_name
-                body += 'Document id: %s<p>' % id
-                logging.info(body)
-                self.response.out.write(body)
+                requestargs = self.request.arguments()
+                requestargs.remove('index_name')
+                requestargs.remove('namespace')
+                requestargs.remove('id')
+                missingid=requestargs[0]
+                if missingid is not None:
+                    id = '%s&%s' % (id,missingid)
+                    doc = index.get(id)
+                    body = 'Deleting document with & in it:<br>'
+                    body += 'Namespace: %s<br>' % namespace
+                    body += 'Index_name: %s<br>' % index_name
+                    body += 'Document id: %s<br>' % id
+                    body += 'Missing id part: %s<br>' % missingid
+                    logging.info(body)
+                    self.response.out.write(body)
+                    index.delete(id)
+                else:
+                    body = 'Document not found:<br>'
+                    body += 'Namespace: %s<br>' % namespace
+                    body += 'Index_name: %s<br>' % index_name
+                    body += 'Document id: %s<br>' % id
+                    body += 'Arguments: %s<br>' % self.request.arguments()
+                    logging.info(body)
+                    self.response.out.write(body)
 
 routes = [
     webapp2.Route(r'/list-indexes', handler='indexer.ListIndexes:get'),
