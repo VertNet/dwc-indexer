@@ -193,21 +193,28 @@ class IndexDeleteResource(webapp2.RequestHandler):
         max_retries = 3
         retry_count = 0
         error = None
-        while retry_count < max_retries:
+        no_ids = True
+        logging.info('Query: %s namespace: %s index: %s' % (querystr, namespace, index_name) )
+        while no_ids and retry_count < max_retries:
           try:
             # Define the query by using a Query object.
             query = search.Query(querystr, options=search.QueryOptions(limit=bsize, ids_only=True) )
             index = search.Index(index_name, namespace=namespace)
+#            logging.info('Searching for docs (retry %s): namespace: %s index: %s' % (retry_count, namespace, index_name) )
             docs = index.search(query)
+            ids = [doc.doc_id for doc in docs]
+            no_ids = False
+#            logging.info('Got docs: %s namespace: %s index: %s' % (ids, namespace, index_name) )
           except search.Error, e:
+            logging.error('Search ERROR on query: %s limit: %s namespace: %s index: %s error: %s' % (querystr, bsize, namespace, index_name, e) )
             logging.exception('Search ERROR on query: %s limit: %s namespace: %s index: %s error: %s' % (querystr, bsize, namespace, index_name, e) )
             retry_count += 1
             if retry_count == max_retries:
-              logging.info('Too many search errors. Aborting delete for resource %s, index %s, namespace %s' % 
+                logging.info('Too many search errors. Aborting delete for resource %s, index %s, namespace %s' % 
                         (resource, index_name, namespace) )
-              return
+                return
 
-        ids = [doc.doc_id for doc in docs]
+#        ids = [doc.doc_id for doc in docs]
 
         if len(ids) < 1:
             logging.info('No documents for resource=%s left to delete in %s.%s.' % 
