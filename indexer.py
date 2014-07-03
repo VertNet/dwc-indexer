@@ -154,15 +154,16 @@ class IndexGcsPath(webapp2.RequestHandler):
 class IndexDeleteResource(webapp2.RequestHandler):
     def get(self):
         """Deletes the documents matching criteria for resource."""
-        index_name, namespace, resource, batch_size, ndeleted, max_delete, dryrun = \
+        index_name, namespace, resource, batch_size, ndeleted, max_delete, dryrun, icode = \
             map(self.request.get,
                 ['index_name', 'namespace', 'resource', 'batch_size', 'ndeleted', 
-                 'max_delete', 'dryrun'])
+                 'max_delete', 'dryrun', 'icode'])
         
         body = 'Deleting resource:<br>'
         body += 'Namespace: %s<br>' % namespace
         body += 'Index_name: %s<br>' % index_name
         body += 'Resource: %s<br>' % resource
+        body += 'InstitutionCode: %s<br>' % icode
         body += 'Batch size: %s<br>' % batch_size
         body += 'Max delete: %s<br>' % max_delete
         body += 'Dry run: %s<br>' % dryrun
@@ -170,9 +171,9 @@ class IndexDeleteResource(webapp2.RequestHandler):
         self.response.out.write(body)
 
         if dryrun:
-            logging.info('\n==IndexDeleteResource(%s, %s, %s, %s, %s, %s, %s)==' % 
+            logging.info('\n==IndexDeleteResource(%s, %s, %s, %s, %s, %s, %s, %s)==' % 
                         (resource, namespace, index_name, batch_size, ndeleted, 
-                         max_delete, dryrun) )
+                         max_delete, dryrun, icode) )
 
         deleted_so_far=0
         if ndeleted is not None and ndeleted != '':
@@ -189,7 +190,7 @@ class IndexDeleteResource(webapp2.RequestHandler):
         if deleted_so_far + bsize > maxdel:
             bsize = maxdel-deleted_so_far
             
-        querystr = 'resource:%s' % (resource)
+        querystr = 'resource:%s institutioncode:%s' % (resource, icode)
         max_retries = 3
         retry_count = 0
         error = None
@@ -229,7 +230,7 @@ class IndexDeleteResource(webapp2.RequestHandler):
         
         params = dict(index_name=index_name, namespace=namespace, 
                       batch_size=batch_size, max_delete=max_delete, 
-                      ndeleted=deleted_so_far, resource=resource)
+                      ndeleted=deleted_so_far, resource=resource, icode=icode)
 
         if dryrun:
             params['dryrun'] = 1
