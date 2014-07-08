@@ -153,17 +153,19 @@ class IndexGcsPath(webapp2.RequestHandler):
                      
 class IndexDeleteResource(webapp2.RequestHandler):
     def get(self):
-        """Deletes the documents matching criteria for resource."""
-        index_name, namespace, resource, batch_size, ndeleted, max_delete, dryrun, icode = \
+        """Deletes documents matching resource, and, optionally icode and class."""
+        index_name, namespace, resource, batch_size, ndeleted, \
+            max_delete, dryrun, icode, classs = \
             map(self.request.get,
                 ['index_name', 'namespace', 'resource', 'batch_size', 'ndeleted', 
-                 'max_delete', 'dryrun', 'icode'])
+                 'max_delete', 'dryrun', 'icode', 'classs'])
         
         body = 'Deleting resource:<br>'
         body += 'Namespace: %s<br>' % namespace
         body += 'Index_name: %s<br>' % index_name
         body += 'Resource: %s<br>' % resource
         body += 'InstitutionCode: %s<br>' % icode
+        body += 'Class: %s<br>' % classs
         body += 'Batch size: %s<br>' % batch_size
         body += 'Max delete: %s<br>' % max_delete
         body += 'Dry run: %s<br>' % dryrun
@@ -171,9 +173,9 @@ class IndexDeleteResource(webapp2.RequestHandler):
         self.response.out.write(body)
 
         if dryrun:
-            logging.info('\n==IndexDeleteResource(%s, %s, %s, %s, %s, %s, %s, %s)==' % 
+            logging.info('\n==IndexDeleteResource(%s, %s, %s, %s, %s, %s, %s, %s, %s)==' % 
                         (resource, namespace, index_name, batch_size, ndeleted, 
-                         max_delete, dryrun, icode) )
+                         max_delete, dryrun, icode, classs) )
 
         deleted_so_far=0
         if ndeleted is not None and ndeleted != '':
@@ -190,32 +192,20 @@ class IndexDeleteResource(webapp2.RequestHandler):
         if deleted_so_far + bsize > maxdel:
             bsize = maxdel-deleted_so_far
             
-        querystr = 'resource:%s institutioncode:%s' % (resource, icode)
-        max_retries = 3
-        retry_count = 0
-        error = None
-        no_ids = True
-        logging.info('Query: %s namespace: %s index: %s' % (querystr, namespace, index_name) )
-        while no_ids and retry_count < max_retries:
-          try:
-            # Define the query by using a Query object.
-            query = search.Query(querystr, options=search.QueryOptions(limit=bsize, ids_only=True) )
-            index = search.Index(index_name, namespace=namespace)
-#            logging.info('Searching for docs (retry %s): namespace: %s index: %s' % (retry_count, namespace, index_name) )
-            docs = index.search(query)
-            ids = [doc.doc_id for doc in docs]
-            no_ids = False
-#            logging.info('Got docs: %s namespace: %s index: %s' % (ids, namespace, index_name) )
-          except search.Error, e:
-            logging.error('Search ERROR on query: %s limit: %s namespace: %s index: %s error: %s' % (querystr, bsize, namespace, index_name, e) )
-            logging.exception('Search ERROR on query: %s limit: %s namespace: %s index: %s error: %s' % (querystr, bsize, namespace, index_name, e) )
-            retry_count += 1
-            if retry_count == max_retries:
-                logging.info('Too many search errors. Aborting delete for resource %s, index %s, namespace %s' % 
-                        (resource, index_name, namespace) )
-                return
+        querystr = 'resource:%s' % resource
+        if icode is not None and len(icode)>0:
+            querystr += ' institutioncode:%s' % icode
+        if classs is not None and len(classs)>0:
+            querystr += ' class:%s' % classs
 
-#        ids = [doc.doc_id for doc in docs]
+        logging.info('Query: %s namespace: %s index: %s' % (querystr, namespace, index_name) )
+
+        # Set task queue characteristics in queue.yaml to retry tasks that fail.
+        # Define the query by using a Query object.
+        query = search.Query(querystr, options=search.QueryOptions(limit=bsize, ids_only=True) )
+        index = search.Index(index_name, namespace=namespace)
+        docs = index.search(query)
+        ids = [doc.doc_id for doc in docs]
 
         if len(ids) < 1:
             logging.info('No documents for resource=%s left to delete in %s.%s.' % 
@@ -225,12 +215,11 @@ class IndexDeleteResource(webapp2.RequestHandler):
         logging.info('Deleting %s documents.\nFirst: %s\nLast:  %s' % 
                     ( len(ids), ids[0], ids[-1] ) )
         index.delete(ids)
-   
         deleted_so_far = deleted_so_far + len(ids)
         
         params = dict(index_name=index_name, namespace=namespace, 
                       batch_size=batch_size, max_delete=max_delete, 
-                      ndeleted=deleted_so_far, resource=resource, icode=icode)
+                      ndeleted=deleted_so_far, resource=resource, icode=icode, classs=classs)
 
         if dryrun:
             params['dryrun'] = 1
