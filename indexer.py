@@ -316,6 +316,46 @@ class IndexClean(webapp2.RequestHandler):
             logging.info('Finished index-clean on index %s.%s. Removed %s documents.' % 
                         (namespace, index_name, deleted_so_far) )
                      
+class IndexFindRecord(webapp2.RequestHandler):
+    def get(self):
+        """Searches for a document with matching id."""
+        index_name, namespace, id = \
+            map(self.request.get,
+                ['index_name', 'namespace', 'id'])
+        index = search.Index(index_name, namespace=namespace)
+
+        if id:
+            doc = index.get(id)
+            if doc:
+                body = 'Found %s:<br>' % id
+                body += 'Namespace: %s<br>' % namespace
+                body += 'Index_name: %s<br>' % index_name
+                body += 'Document: %s<br>' % doc
+                logging.info(body)
+                self.response.out.write(body)
+            else:
+                requestargs = self.request.arguments()
+                requestargs.remove('index_name')
+                requestargs.remove('namespace')
+                requestargs.remove('id')
+                missingid=requestargs[0]
+                if missingid is not None:
+                    id = '%s&%s' % (id,missingid)
+                    doc = index.get(id)
+                    body = 'Found %s:<br>' % id
+                    body += 'Namespace: %s<br>' % namespace
+                    body += 'Index_name: %s<br>' % index_name
+                    body += 'Document id: %s<br>' % id
+                    logging.info(body)
+                    self.response.out.write(body)
+                else:
+                    body = 'Document not found: %s<br>' % id
+                    body += 'Namespace: %s<br>' % namespace
+                    body += 'Index_name: %s<br>' % index_name
+                    body += 'Arguments: %s<br>' % self.request.arguments()
+                    logging.info(body)
+                    self.response.out.write(body)
+
 class IndexDeleteRecord(webapp2.RequestHandler):
     def get(self):
         """Deletes a document with matching id."""
@@ -366,6 +406,7 @@ routes = [
     webapp2.Route(r'/index-gcs-path', handler='indexer.IndexGcsPath:get'),
     webapp2.Route(r'/index-gcs-path-finalize', handler='indexer.IndexGcsPath:finalize'),
     webapp2.Route(r'/index-delete-resource', handler='indexer.IndexDeleteResource:get'),
+    webapp2.Route(r'/index-find-record', handler='indexer.IndexFindRecord:get'),
     webapp2.Route(r'/index-delete-record', handler='indexer.IndexDeleteRecord:get'),]
 
 # index-clean is dangerous. Re-implement if really needed at some point.

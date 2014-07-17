@@ -194,7 +194,6 @@ def valid_binomial(rec):
     # Sufficient condition for now to have these DwC terms populated.
     # Later may want to test them against a name authority to determine validity.
     return True
- 
 def _rank(rec):
     """Return the rank to be used in document sorting based on the content priority."""
     hasbinomial = valid_binomial(rec)
@@ -279,7 +278,7 @@ def has_typestatus(rec):
         return 1
     return 0
 
-# This function may not longer be in use.
+# This function may no longer be in use.
 def network(rec, network):
     if rec.has_key('networks'):
         networks = [x.lower() for x in rec['networks'].split(',')]
@@ -368,21 +367,6 @@ def _eventdate(rec):
     except:
         eventdate = None        
     return eventdate
-
-#def _eventdate(rec):
-#    """Return the eventdate as a string based on a eventdate if it exists, otherwise on year, month, and day converted to ISO8601."""
-#    if rec.has_key('eventdate'):
-#        return rec['eventdate']
-#    if rec.has_key('year') is False:
-#        return None
-#    y = rec['year']
-#    m = None
-#    d = None
-#    if rec.has_key('month') is True:
-#        m = rec['month']
-#    if rec.has_key('day') is True:
-#        m = rec['day']
-#    return eventdate_from_ymd(y,m,d)
 
 def slugify(s, length=None, separator="-"):
     """Return a slugged version of supplied string."""
@@ -537,8 +521,11 @@ def index_record(data, issue=None):
     # search.Index().put(doc) replaces docs with matching doc_ids. Then one would only
     # need to remove any records from that resource with an older pubdate as opposed to 
     # deleting all records from the resource.
-    # The problem is that pubdate is currently populated with the  date the 
+    # The problem is that pubdate is currently populated with the date the 
     # resource was first published, not the date it was last published.
+    # hashid is a hash of the rec as a means to evenly distribute records among bins
+    # for parallel processing on bins having 10k or less records.
+    
     doc = search.Document(
         doc_id=keyname,
         rank=recrank,
@@ -566,6 +553,7 @@ def index_record(data, issue=None):
                 search.NumberField(name='tissue', value=has_tissue(data)),
                 search.NumberField(name='hastypestatus', value=has_typestatus(data)),
                 search.NumberField(name='rank', value=recrank),
+                search.NumberField(name='hashid', value=hash(keyname)%1999),
                 search.TextField(name='verbatim_record', 
                                  value=json.dumps(verbatim_dwc(data, keyname))),
     # Note that full_text_key_trim pops values from data, making them unavailable to
