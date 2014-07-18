@@ -134,6 +134,15 @@ class IndexGcsPath(webapp2.RequestHandler):
             mapreduce_parameters={'done_callback': '/index-gcs-path-finalize'},
             shard_count=shard_count)
 
+        body = 'Indexing resource:<br>'
+        body += 'Namespace: %s<br>' % namespace
+        body += 'Index_name: %s<br>' % index_name
+        body += 'Resource: %s<br>' % gcs_path
+        body += 'Processing rate: %s<br>' % processing_rate
+        body += 'Shard count: %s<br>' % shard_count
+        logging.info(body)
+        self.response.out.write(body)
+
         IndexJob(id=mrid, resource=gcs_path, write_path='write_path', 
             failed_logs=['NONE'], namespace=namespace).put()
 

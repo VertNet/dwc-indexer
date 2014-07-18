@@ -278,6 +278,15 @@ def has_typestatus(rec):
         return 1
     return 0
 
+def is_fossil(rec,res_id):
+    """Return 1 if the rec represents a record that is a fossil."""
+    if rec.has_key('basisofrecord'):
+        if 'fossil' in rec['basisofrecord'].lower():
+            return 1
+    if 'palaeo' in res_id or 'paleo' in res_id:
+        return 1
+    return 0
+
 # This function may no longer be in use.
 def network(rec, network):
     if rec.has_key('networks'):
@@ -551,6 +560,7 @@ def index_record(data, issue=None):
                 search.TextField(name='pubdate', value=pubdate),
                 search.NumberField(name='media', value=has_media(data)),
                 search.NumberField(name='tissue', value=has_tissue(data)),
+                search.NumberField(name='fossil', value=is_fossil(data,res_id)),
                 search.NumberField(name='hastypestatus', value=has_typestatus(data)),
                 search.NumberField(name='rank', value=recrank),
                 search.NumberField(name='hashid', value=hash(keyname)%1999),
