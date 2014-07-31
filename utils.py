@@ -283,8 +283,6 @@ def is_fossil(rec,res_id):
     if rec.has_key('basisofrecord'):
         if 'fossil' in rec['basisofrecord'].lower():
             return 1
-    if 'palaeo' in res_id or 'paleo' in res_id:
-        return 1
     return 0
 
 # This function may no longer be in use.
