@@ -255,9 +255,6 @@ class IndexClean(webapp2.RequestHandler):
                 ['index_name', 'namespace', 'id', 'batch_size', 'ndeleted', 'max_delete', 
                  'dryrun'])
         index = search.Index(index_name, namespace=namespace)
-        if dryrun:
-            logging.info('\n==IndexClean(id=%s, %s, %s, %s, %s, %s, %s)==' 
-                % (id, namespace, index_name, batch_size, ndeleted, max_delete, dryrun))
 
         deleted_so_far=0
         if ndeleted is not None and ndeleted != '':
@@ -273,6 +270,10 @@ class IndexClean(webapp2.RequestHandler):
         to_delete = bsize
         if maxdel < deleted_so_far + bsize:
             to_delete = maxdel - deleted_so_far
+
+        if dryrun:
+          logging.info('\n==IndexClean(id=%s, %s, %s, %s, %s, %s, %s)==' 
+                % (id, namespace, index_name, batch_size, ndeleted, max_delete, dryrun))
 
         if id:
             docs = index.get_range(start_id=id, ids_only=True, limit=to_delete+1,
@@ -308,6 +309,7 @@ class IndexClean(webapp2.RequestHandler):
         body += 'Maximum documents to delete: %s<br>' % maxdel
         body += 'Dryrun: %s' % dryrun
         self.response.out.write(body)
+        logging.info(body)
         # Delete all but the last document, which is the key for where to start next.
         index.delete(delete_these)
    
@@ -416,10 +418,12 @@ routes = [
     webapp2.Route(r'/index-gcs-path-finalize', handler='indexer.IndexGcsPath:finalize'),
     webapp2.Route(r'/index-delete-resource', handler='indexer.IndexDeleteResource:get'),
     webapp2.Route(r'/index-find-record', handler='indexer.IndexFindRecord:get'),
-    webapp2.Route(r'/index-delete-record', handler='indexer.IndexDeleteRecord:get'),]
 
 # index-clean is dangerous. Re-implement if really needed at some point.
 #    webapp2.Route(r'/index-delete-record', handler='indexer.IndexDeleteRecord:get'),
-#    webapp2.Route(r'/index-clean', handler='indexer.IndexClean:get'),]
+#    webapp2.Route(r'/index-clean', handler='indexer.IndexClean:get'),
+
+    webapp2.Route(r'/index-delete-record', handler='indexer.IndexDeleteRecord:get'),]
+
 
 handler = webapp2.WSGIApplication(routes, debug=IS_DEV)
