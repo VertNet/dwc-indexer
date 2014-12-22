@@ -424,6 +424,7 @@ routes = [
 #    webapp2.Route(r'/index-clean', handler='indexer.IndexClean:get'),
 
     webapp2.Route(r'/index-delete-record', handler='indexer.IndexDeleteRecord:get'),]
-
+# Example:
+# http://indexer.vertnet-portal.appspot.com/index-delete-record?namespace=index-2014-02-11a&index_name=dwc&id=museum-of-vertebrate-zoology-uc-berkeley/mvz-herp-observations-arctos/b0e170ef-9e86-4d64-905d-9f146416bddd
 
 handler = webapp2.WSGIApplication(routes, debug=IS_DEV)

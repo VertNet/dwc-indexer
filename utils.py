@@ -458,6 +458,8 @@ def verbatim_dwc(rec, keyname):
     return rec
 
 def index_record(data, issue=None):
+    # This version of index_record complies with the harvest schema from gulo branch'
+    # dwc2013 (https://github.com/VertNet/gulo/tree/dwc2013).
     """Creates a document ready to index from the given input data. This is where the work is to construct the document."""
     icode, collcode, catnum, occid, \
     continent, country, stateprov, county, islandgroup, island, \
