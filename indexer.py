@@ -255,7 +255,7 @@ class IndexClean(webapp2.RequestHandler):
     def get(self):
         """Removes up to max_delete documents from an index in batches of batch_size."""
         # Example:
-        # http://indexer.vertnet-portal.appspot.com/index-clean?index_name=dwc&namespace=index-2014-02-05a
+        # http://indexer.vertnet-portal.appspot.com/index-clean?namespace=index-2014-02-05a&index_name=dwc
         index_name, namespace, id, batch_size, ndeleted, max_delete, dryrun = \
             map(self.request.get,
                 ['index_name', 'namespace', 'id', 'batch_size', 'ndeleted', 'max_delete', 
@@ -428,7 +428,7 @@ routes = [
     webapp2.Route(r'/index-find-record', handler='indexer.IndexFindRecord:get'),
     webapp2.Route(r'/list-indexes', handler='indexer.ListIndexes:get'),
     webapp2.Route(r'/index-delete-resource', handler='indexer.IndexDeleteResource:get'),
-    webapp2.Route(r'/index-delete-record', handler='indexer.IndexDeleteRecord:get'),]
-# index-clean is dangerous. Re-implement if really needed at some point.
-    webapp2.Route(r'/index-clean', handler='indexer.IndexClean:get'),
+    webapp2.Route(r'/index-delete-record', handler='indexer.IndexDeleteRecord:get'),
+# index-clean is dangerous. Use with extreme caution. It removes all documents from an index.
+    webapp2.Route(r'/index-clean', handler='indexer.IndexClean:get'),]
 handler = webapp2.WSGIApplication(routes, debug=IS_DEV)
