@@ -62,6 +62,8 @@ class IndexJob(ndb.Model):
 class ListIndexes(webapp2.RequestHandler):
     def get(self):
         """List all indexes for all namespaces."""
+        # Example:
+        # http://indexer.vertnet-portal.appspot.com/list-indexes?namespace=index-2014-03-12
         # Doesn't show indexes created by indexer in other namespaces.
         # For that, you have to pass the namespace parameter.
         ns = map(self.request.get,['namespace'])[0]
@@ -163,6 +165,8 @@ class IndexGcsPath(webapp2.RequestHandler):
 class IndexDeleteResource(webapp2.RequestHandler):
     def get(self):
         """Deletes documents matching resource, and, optionally icode and class."""
+        # Example:
+        # http://indexer.vertnet-portal.appspot.com/index-delete-resource?resource=usnm/nmnh-amphibians-reptiles&index_name=dwc&namespace=index-2014-02-05a&index_name=dwc&namespace=index-2014-02-05a
         index_name, namespace, resource, batch_size, ndeleted, \
             max_delete, dryrun, icode, classs = \
             map(self.request.get,
@@ -250,6 +254,8 @@ class IndexDeleteResource(webapp2.RequestHandler):
 class IndexClean(webapp2.RequestHandler):
     def get(self):
         """Removes up to max_delete documents from an index in batches of batch_size."""
+        # Example:
+        # http://indexer.vertnet-portal.appspot.com/index-clean?index_name=dwc&namespace=index-2014-02-05a
         index_name, namespace, id, batch_size, ndeleted, max_delete, dryrun = \
             map(self.request.get,
                 ['index_name', 'namespace', 'id', 'batch_size', 'ndeleted', 'max_delete', 
@@ -330,6 +336,8 @@ class IndexClean(webapp2.RequestHandler):
 class IndexFindRecord(webapp2.RequestHandler):
     def get(self):
         """Searches for a document with matching id."""
+        # Example:
+        # http://indexer.vertnet-portal.appspot.com/index-find-record?id=rom/mammals/100179&namespace=index-2014-03-12&index_name=dwc
         index_name, namespace, id = \
             map(self.request.get,
                 ['index_name', 'namespace', 'id'])
@@ -370,6 +378,8 @@ class IndexFindRecord(webapp2.RequestHandler):
 class IndexDeleteRecord(webapp2.RequestHandler):
     def get(self):
         """Deletes a document with matching id."""
+        # Example:
+        # http://indexer.vertnet-portal.appspot.com/index-delete-record?namespace=index-2014-02-11a&index_name=dwc&id=museum-of-vertebrate-zoology-uc-berkeley/mvz-herp-observations-arctos/b0e170ef-9e86-4d64-905d-9f146416bddd
         index_name, namespace, id = \
             map(self.request.get,
                 ['index_name', 'namespace', 'id'])
@@ -412,19 +422,13 @@ class IndexDeleteRecord(webapp2.RequestHandler):
                     self.response.out.write(body)
 
 routes = [
-    webapp2.Route(r'/list-indexes', handler='indexer.ListIndexes:get'),
     webapp2.Route(r'/bootstrap-gcs', handler='indexer.BootstrapGcs:get'),
     webapp2.Route(r'/index-gcs-path', handler='indexer.IndexGcsPath:get'),
     webapp2.Route(r'/index-gcs-path-finalize', handler='indexer.IndexGcsPath:finalize'),
-    webapp2.Route(r'/index-delete-resource', handler='indexer.IndexDeleteResource:get'),
     webapp2.Route(r'/index-find-record', handler='indexer.IndexFindRecord:get'),
-
-# index-clean is dangerous. Re-implement if really needed at some point.
-#    webapp2.Route(r'/index-delete-record', handler='indexer.IndexDeleteRecord:get'),
-#    webapp2.Route(r'/index-clean', handler='indexer.IndexClean:get'),
-
+    webapp2.Route(r'/list-indexes', handler='indexer.ListIndexes:get'),
+    webapp2.Route(r'/index-delete-resource', handler='indexer.IndexDeleteResource:get'),
     webapp2.Route(r'/index-delete-record', handler='indexer.IndexDeleteRecord:get'),]
-# Example:
-# http://indexer.vertnet-portal.appspot.com/index-delete-record?namespace=index-2014-02-11a&index_name=dwc&id=museum-of-vertebrate-zoology-uc-berkeley/mvz-herp-observations-arctos/b0e170ef-9e86-4d64-905d-9f146416bddd
-
+# index-clean is dangerous. Re-implement if really needed at some point.
+    webapp2.Route(r'/index-clean', handler='indexer.IndexClean:get'),
 handler = webapp2.WSGIApplication(routes, debug=IS_DEV)
