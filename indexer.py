@@ -421,7 +421,7 @@ routes = [
 
 # index-clean is dangerous. Re-implement if really needed at some point.
 #    webapp2.Route(r'/index-delete-record', handler='indexer.IndexDeleteRecord:get'),
-#    webapp2.Route(r'/index-clean', handler='indexer.IndexClean:get'),
+    webapp2.Route(r'/index-clean', handler='indexer.IndexClean:get'),
 
     webapp2.Route(r'/index-delete-record', handler='indexer.IndexDeleteRecord:get'),]
 

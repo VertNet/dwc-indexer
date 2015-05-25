@@ -185,7 +185,7 @@ def valid_georef(rec):
         return False
     return valid_latlng(rec['decimallatitude'],rec['decimallongitude'])
  
-def valid_binomial(rec):
+def valid_binominal(rec):
     """Return True if rec has a genus and specificepithet, otherwise return False."""
     if rec.has_key('genus') is False:
         return False
@@ -196,10 +196,10 @@ def valid_binomial(rec):
     return True
 def _rank(rec):
     """Return the rank to be used in document sorting based on the content priority."""
-    hasbinomial = valid_binomial(rec)
-    if hasbinomial is False:
+    hasbinominal = valid_binominal(rec)
+    if hasbinominal is False:
         return 0
-    # Must have a binomial to have a rank.
+    # Must have a binominal to have a rank.
     rank = 0
     hasgeoref = valid_georef(rec)
     hascoords = False
