@@ -463,12 +463,12 @@ def index_record(data, issue=None):
     continent, country, stateprov, county, islandgroup, island, \
     classs, order, family, genus, specep, \
     lat, lon, uncertainty, datum, \
-    year, collname, url, pubdate = map(data.get, 
+    year, month, collname, url, pubdate = map(data.get, 
         ['icode', 'collectioncode', 'catalognumber', 'id',
          'continent', 'country', 'stateprovince', 'county', 'islandgroup', 'island',
          'classs', 'order', 'family', 'genus', 'specificepithet', 
          'decimallatitude', 'decimallongitude', 'coordinateuncertaintyinmeters', 'geodeticdatum',
-         'year', 'recordedby', 'url', 'pubdate'])
+         'year', 'month', 'recordedby', 'url', 'pubdate'])
 
     # Trim any empty data fields from the verbatim record
     
@@ -515,6 +515,7 @@ def index_record(data, issue=None):
     unc = _coordinateuncertaintyinmeters(uncertainty)
     eventdate = _eventdate(data)
     fyear = is_float(year)
+    fmonth = is_float(month)
 
 #    if location is not None:
 #        logging.info('%s %s location: %s unc:%s datum: %s georefed: %s rank: %s\n%s' %
@@ -522,8 +523,8 @@ def index_record(data, issue=None):
 
     # Of the fields to index, the following are essential, while all others are probably
     # sufficiently covered by full text indexing on the record field:
-    # institutioncode, resource, catalognumber, year, type, media, tissue, hastypestatus, 
-    # rank, record.
+    # institutioncode, resource, catalognumber, year, month, type, media, tissue, 
+    # hastypestatus, rank, record.
     # pubdate would be useful for being able to reindex a single resource - because 
     # search.Index().put(doc) replaces docs with matching doc_ids. Then one would only
     # need to remove any records from that resource with an older pubdate as opposed to 
@@ -580,6 +581,9 @@ def index_record(data, issue=None):
 
     if fyear is not None:
         doc.fields.append(search.NumberField(name='year', value=fyear))
+
+    if fmonth is not None:
+        doc.fields.append(search.NumberField(name='month', value=fmonth))
 
     if eventdate is not None:
         doc.fields.append(search.DateField(name='eventdate', value=eventdate))
