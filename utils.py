@@ -15,22 +15,8 @@ from mapreduce import context
 
 IS_DEV = 'Development' in os.environ['SERVER_SOFTWARE']
 
-# Fields to full-text index that are not indexed separately.
-FULL_TEXT_KEYS = [
-'bed', 'behavior', 'datageneralizations', 'dynamicproperties', 
-'earliestageorloweststage', 'earliesteonorlowesteonothem', 'earliestepochorlowestseries', 
-'earliesteraorlowesterathem', 'earliestperiodorlowestsystem', 'establishmentmeans', 
-'eventremarks', 'fieldnotes', 'formation', 'georeferenceremarks', 'group', 'habitat', 
-'higherclassification', 'highergeography', 'highestbiostratigraphiczone', 
-'identificationqualifier', 'identificationreferences', 'identificationremarks', 
-'identificationverificationstatus', 'informationwithheld', 
-'latestageorhigheststage', 'latesteonorhighesteonothem', 'latestepochorhighestseries', 
-'latesteraorhighesterathem', 'latestperiodorhighestsystem', 'lifestage', 
-'lithostratigraphicterms', 'locality', 'locationremarks', 'lowestbiostratigraphiczone', 
-'member', 'municipality', 'networks', 'occurrenceremarks', 'organismname', 
-'organismremarks', 'organismscope', 'othercatalognumbers', 'preparations', 
-'previousidentifications', 'reproductivecondition', 'samplingeffort', 'samplingprotocol', 
-'scientificname', 'taxonremarks', 'typestatus', 'verbatimlocality', 'vernacularname'
+FULL_TEXT_KEYS_OMIT = [
+'title', 'eml', 'orgcountry', 'orgstateprovince'
 ]
 
 HEADER = [
@@ -65,10 +51,10 @@ HEADER = [
 'samplingprotocol', 'sex', 'startdayofyear', 'stateprovince', 'typestatus', 
 'verbatimcoordinates', 'verbatimcoordinatesystem', 'verbatimdepth', 'verbatimelevation', 
 'verbatimeventdate', 'verbatimlatitude', 'verbatimlocality', 'verbatimlongitude', 
-'verbatimsrs', 'waterbody', 'year', 'dctype', 'modified', 'language', 'license', 
+'verbatimsrs', 'waterbody', 'year', 'type', 'modified', 'language', 'license', 
 'rightsholder', 'accessrights', 'bibliographiccitation', 'references', 'institutionid', 
 'collectionid', 'datasetid', 'institutioncode', 'collectioncode', 'datasetname', 
-'ownerinstitutioncode', 'basisOfRecord', 'informationwithheld', 'datageneralizations',
+'ownerinstitutioncode', 'basisofrecord', 'informationwithheld', 'datageneralizations',
 'dynamicproperties', 'taxonid', 'scientificnameid', 'acceptednameusageid', 
 'parentnameusageid', 'originalnameusageid', 'nameaccordingtoid', 'namepublishedinid', 
 'taxonconceptid', 'scientificname', 'acceptednameusage', 'parentnameusage', 
@@ -77,12 +63,6 @@ HEADER = [
 'subgenus', 'specificepithet', 'infraspecificepithet', 'taxonrank', 'verbatimtaxonrank',
 'scientificnameauthorship', 'vernacularname', 'nomenclaturalcode', 'taxonomicstatus', 
 'nomenclaturalstatus', 'taxonremarks']
-
-# NON_DWC_HEADER_KEYS_2015 = [
-# 'icode', 'title', 'citation', 'contact', 'dwca', 'email', 'eml', 'emlrights', 
-# 'gbifdatasetid', 'gbifpublisherid', 'doi', 'iptlicense', 'migrator', 'networks', 
-# 'orgcountry', 'orgname', 'orgstateprovince', 'pubdate', 'source_url', 'url', 'id'
-# ]
 
 # HEADER_2013_FIELDS_DEPRECATED = [
 # 'description', 'harvestid', 'eventattributes', 'identificationattributes', 
@@ -352,9 +332,38 @@ def has_tissue(rec):
                 return 1
     return 0
 
-def has_typestatus(rec):
-    """Return 1 if the rec has the typestatus field populated, otherwise return 0."""
-    if rec.has_key('typestatus'):
+# def has_typestatus(rec):
+#     """Return 1 if the rec has the typestatus field populated, otherwise return 0."""
+#     if rec.has_key('typestatus'):
+#         return 1
+#     return 0
+
+def has_license(rec):
+    """Return 1 if the rec has the iptlicense or the license field populated, otherwise return 0."""
+    if rec.has_key('license'):
+        return 1
+    if rec.has_key('iptlicense'):
+        return 1
+    return 0
+
+def was_captive(rec):
+    """Return 1 if the rec has evidence that the organism was captive, otherwise return 0."""
+    if rec.has_key('establishmentmeans'):
+        if 'capt' in rec['establishmentmeans'].lower():
+          return 1
+        if 'managed' in rec['establishmentmeans'].lower():
+          return 1
+    if rec.has_key('locality'):
+        if 'captive' in rec['locality'].lower():
+          return 1
+    if rec.has_key('highergeography'):
+        if 'captive' in rec['highergeography'].lower():
+          return 1
+    return 0
+
+def has_key(rec, key):
+    """Return 1 if the rec has the key field populated, otherwise return 0."""
+    if rec.has_key(key):
         return 1
     return 0
 
@@ -524,39 +533,54 @@ def handle_failed_index_put(data, resource, did, write_path, mrid):
     job.failed_logs.append(did)
     job.put()
 
-def full_text_key_trim(rec):
-    """Returns a record rec with non-full-text-indexed terms removed."""
-    for key in rec.keys():
-        if key not in FULL_TEXT_KEYS:
-            rec.pop(key)
-    return rec
+# def full_text_key_trim(rec):
+#     """Returns a record rec with non-full-text-indexed terms removed."""
+#     for key in rec.keys():
+#         if key not in FULL_TEXT_KEYS:
+#             rec.pop(key)
+#     return rec
 
 def verbatim_dwc(rec, keyname):
     """Returns a record with verbatim original Darwin Core fields plus the keyname field, minus any empty fields."""
+#    logging.info('In verbatim_dwc, rec: %s' % (rec))
     for key in rec.keys():
-        if rec[key] == '':
+        if rec[key] == '' or key in FULL_TEXT_KEYS_OMIT:
             rec.pop(key)
     rec['keyname'] = keyname
     return rec
 
 def index_record(data, indexdate, issue=None):
     """Creates a document ready to index from the given input data. This is where the work is to construct the document."""
-    icode, collcode, catnum, occid, type, basisofrecord, \
+    occid, icode, collcode, catnum, \
+    gbifdatasetid, gbifpublisherid, networks, \
+    license, iptlicense, migrator, \
+    dctype, basisofrecord, references, \
     continent, country, stateprov, county, municipality, \
-    islandgroup, island, waterbody, \
-    kingdom, phylum, classs, order, family, genus, specep, infspecep, \
-    lat, lon, uncertainty, datum, georeferencedby, georeferenceverificationstatus, \
-    year, month, collname, sex, recordnumber, fieldnumber,
-    gbifdatasetid, gbifpublisherid, reference = map(data.get, 
-        ['icode', 'collectioncode', 'catalognumber', 'id', 'type', 'basisofrecord',
+    islandgroup, island, waterbody, locality, \
+    lat, lon, uncertainty, \
+    geodeticdatum, georeferencedby, georeferenceverificationstatus, \
+    kingdom, phylum, classs, order, family, \
+    genus, specep, infspecep, \
+    scientificname, vernacularname, typestatus, \
+    year, month, day, \
+    collname, recordnumber, fieldnumber, \
+    bed, formation, group, member, \
+    sex, lifestage, preparations, reproductivecondition = map(data.get, 
+        ['id', 'icode', 'collectioncode', 'catalognumber', 
+         'gbifdatasetid', 'gbifpublisherid', 'networks', 
+         'license', 'iptlicense', 'migrator',
+         'type', 'basisofrecord', 'references', 
          'continent', 'country', 'stateprovince', 'county', 'municipality', 
-         'islandgroup', 'island', 'waterbody',
-         'kingdom', 'phylum', 'classs', 'order', 'family', 'genus', 'specificepithet',
-         'infraspecificepithet', 
+         'islandgroup', 'island', 'waterbody', 'locality',
          'decimallatitude', 'decimallongitude', 'coordinateuncertaintyinmeters', 
          'geodeticdatum', 'georeferencedby', 'georeferenceverificationstatus',
-         'year', 'month', 'recordedby', 'sex', 'recordnumber', 'fieldnumber',
-         'gbifdatasetid', 'gbifpublisherid', 'reference'])
+         'kingdom', 'phylum', 'classs', 'order', 'family', 
+         'genus', 'specificepithet', 'infraspecificepithet', 
+         'scientificname', 'vernacularname', 'typestatus', 
+         'year', 'month', 'day', 
+         'recordedby', 'recordnumber', 'fieldnumber',
+         'bed', 'formation', 'group', 'member',
+         'sex', 'lifestage', 'preparations', 'reproductivecondition'])
     
     # Translate the field 'classs' to field 'class'
     if data.has_key('classs'):        
@@ -566,7 +590,11 @@ def index_record(data, indexdate, issue=None):
     # Translate the field 'type' to field 'dctype'
     if data.has_key('type'):
         data.pop('type')
-    data['dctype'] = type
+    data['dctype'] = dctype
+
+    # Translate the field 'iptlicense' to field 'license' if the latter is missing
+    if (license is None or len(data[license]) == 0) and iptlicense is not None:
+      license = iptlicense
 
     # Create a slugged version of the resource title as a resource identifier
     resource_slug = slugify(data['title'])
@@ -576,7 +604,7 @@ def index_record(data, indexdate, issue=None):
     # Make a coll_id as slugged ascii of the collection for use in document id.
     coll_id = ''
     if collcode is not None and collcode != '':
-        coll_id = re.sub(' ','', re.sub("\'",'',repr(collcode)).lower())
+        coll_id = re.sub(' ','-', re.sub("\'",'',repr(collcode)).lower())
     else:
         coll_id = re.sub("\'",'',repr(resource_slug))
     
@@ -596,8 +624,10 @@ def index_record(data, indexdate, issue=None):
     # Make a unique, potentially persistent document id
     keyname = '%s/%s/%s' % (icode_slug, coll_id, occ_id)
     data['keyname'] = keyname
-    if reference is None or len(reference)=0:
-      reference = 'http://portal.vertnet.org/o/%s/%s?id=%s' % (icode_slug, coll_id, occ_id)
+    # VertNet migrator must construct the references field using this same pattern for 
+    # records that do not already have a references value.
+    if references is None or len(references)==0:
+      references = 'http://portal.vertnet.org/o/%s/%s?id=%s' % (icode_slug, coll_id, occ_id)
 
     # Determine any values for indexing that must be calculated before creating doc
     # because full_text_key_trim(data) affects the contents of data.
@@ -607,61 +637,90 @@ def index_record(data, indexdate, issue=None):
     eventdate = _eventdate(data)
     fyear = is_float(year)
     fmonth = is_float(month)
+    fday = is_float(day)
 
-    # Full text indexing should be done on the rec after stripping out fields that need
-    # not participate in the index. The rest should be set as explicit search fields:
+    # Do full text indexing on all the verbatim fields of the record. 
+    # Index specific key fields for explicit searches on their content.
     # hashid is a hash of the keyname as a means to evenly distribute records among bins
     # for parallel processing with bins having 10k or less records as recommended by 
     # Google engineers.
-    
+
     doc = search.Document(
         doc_id=keyname,
         rank=recrank,
 		fields=[
+                search.TextField(name='iptrecordid', value=occid),
                 search.TextField(name='institutioncode', value=icode),
+                search.TextField(name='collectioncode', value=collcode),
+                search.TextField(name='catalognumber', value=catnum),
+                
                 search.TextField(name='gbifdatasetid', value=gbifdatasetid),
                 search.TextField(name='gbifpublisherid', value=gbifpublisherid),
+                search.TextField(name='networks', value=networks),
                 search.TextField(name='lastindexed', value=indexdate),                
-                search.TextField(name='catalognumber', value=catnum),
+
+                search.TextField(name='license', value=license),
+                search.TextField(name='iptlicense', value=iptlicense),
+                search.TextField(name='migrator', value=migrator),
+
                 search.TextField(name='dctype', value=dctype),
                 search.TextField(name='basisofrecord', value=basisofrecord),
-                search.TextField(name='iptrecordid', value=occid),
+                search.TextField(name='type', value=_type(data)),
+
                 search.TextField(name='continent', value=continent),
                 search.TextField(name='country', value=country),
                 search.TextField(name='stateprovince', value=stateprov),
                 search.TextField(name='county', value=county),
                 search.TextField(name='municipality', value=municipality),
+
                 search.TextField(name='island', value=island),
                 search.TextField(name='islandgroup', value=islandgroup),
                 search.TextField(name='waterbody', value=waterbody),
+                search.TextField(name='locality', value=locality),
+
+                search.TextField(name='geodeticdatum', value=geodeticdatum),
+                search.TextField(name='georeferencedby', value=georeferencedby),
+                search.TextField(name='georeferenceverificationstatus', value=georeferenceverificationstatus),
+
                 search.TextField(name='kingdom', value=kingdom),
                 search.TextField(name='phylum', value=phylum),
                 search.TextField(name='class', value=classs),
                 search.TextField(name='order', value=order),
                 search.TextField(name='family', value=family),
+
                 search.TextField(name='genus', value=genus),
                 search.TextField(name='specificepithet', value=specep),
                 search.TextField(name='infraspecificepithet', value=infspecep),
+
+                search.TextField(name='scientificname', value=scientificname),
+                search.TextField(name='vernacularname', value=vernacularname),
+                search.TextField(name='typestatus', value=typestatus),
+
                 search.TextField(name='recordedby', value=collname),
                 search.TextField(name='recordnumber', value=recordnumber),
                 search.TextField(name='fieldnumber', value=fieldnumber),
+
+                search.TextField(name='bed', value=bed),
+                search.TextField(name='formation', value=formation),
+                search.TextField(name='group', value=group),
+                search.TextField(name='member', value=member),
+
                 search.TextField(name='sex', value=sex),
-                search.TextField(name='georeferencedby', value=georeferencedby),
-                search.TextField(name='georeferenceverificationstatus', value=georeferenceverificationstatus),
-                search.TextField(name='type', value=_type(data)),
+                search.TextField(name='lifestage', value=lifestage),
+                search.TextField(name='preparations', value=preparations),
+                search.TextField(name='reproductivecondition', value=reproductivecondition),
+
                 search.NumberField(name='media', value=has_media(data)),
                 search.NumberField(name='tissue', value=has_tissue(data)),
                 search.NumberField(name='fossil', value=is_fossil(data,res_id)),
-                search.NumberField(name='hastypestatus', value=has_typestatus(data)),
+                search.NumberField(name='hastypestatus', value=has_key(data, 'typestatus')),
+                search.NumberField(name='wascaptive', value=was_captive(data)),
+                search.NumberField(name='haslicense', value=has_license(data)),
+
                 search.NumberField(name='rank', value=recrank),
                 search.NumberField(name='hashid', value=hash(keyname)%1999),
-    # Trim any empty data fields from the verbatim record
                 search.TextField(name='verbatim_record', 
-                                 value=json.dumps(verbatim_dwc(data, keyname))),
-    # Note that full_text_key_trim pops values from data, making them unavailable
-    # for use hereafter in this function.
-                search.TextField(name='record', 
-                                 value=json.dumps(full_text_key_trim(data)))])
+                                 value=json.dumps(verbatim_dwc(data, keyname)))])
 
     mappable = 0
     if location is not None:
@@ -677,6 +736,9 @@ def index_record(data, indexdate, issue=None):
 
     if fmonth is not None:
         doc.fields.append(search.NumberField(name='month', value=fmonth))
+
+    if fday is not None:
+        doc.fields.append(search.NumberField(name='day', value=fday))
 
     if eventdate is not None:
         doc.fields.append(search.DateField(name='eventdate', value=eventdate))
@@ -725,7 +787,7 @@ def build_search_index(entity):
 
     try:
         data = get_rec_dict(dict(zip(HEADER, entity.split('\t'))))
-#        logging.info('Did get_rec_dict() OK! data: %s' % data)
+#        logging.info('Did get_rec_dict() on %s OK! data: %s' % (indexdate, data))
         doc = index_record(data, indexdate)
 #        logging.info('Did index_record(data) OK!! doc: %s' % doc)
         index_doc(doc, index_name, namespace)
