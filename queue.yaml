@@ -21,6 +21,14 @@
 # Queue configuration for the app:
 total_storage_limit: 500M
 queue:
+- name: index-delete-dataset
+  rate: 35/s
+  retry_parameters:
+    task_retry_limit: 7
+    task_age_limit: 60m
+    min_backoff_seconds: 30
+    max_backoff_seconds: 960
+    max_doublings: 7
 - name: index-delete-resource
   rate: 35/s
   retry_parameters:

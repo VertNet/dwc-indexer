@@ -158,7 +158,6 @@ class IndexGcsPath(webapp2.RequestHandler):
         job.done = True
         job.put()
         logging.info('Index job finalized for resource %s' % job.resource)
-
                      
 class IndexDeleteResource(webapp2.RequestHandler):
     def get(self):
@@ -241,6 +240,93 @@ class IndexDeleteResource(webapp2.RequestHandler):
                           queue_name="index-delete-resource")
         else:
             body = 'Finished index-delete-resource:<br>'
+            body += 'Namespace: %s<br>' % namespace
+            body += 'Index_name: %s<br>' % index_name
+            body += 'Documents removed: %s<p>' % deleted_so_far
+            logging.info(body)
+            self.response.out.write(body)
+                     
+class IndexDeleteDataSet(webapp2.RequestHandler):
+    def get(self):
+        """Deletes documents matching gbifdatasetid, and, optionally icode and class."""
+        index_name, namespace, gbifdatasetid, batch_size, ndeleted, \
+            max_delete, dryrun, icode, classs = \
+            map(self.request.get,
+                ['index_name', 'namespace', 'gbifdatasetid', 'batch_size', 'ndeleted', 
+                 'max_delete', 'dryrun', 'icode', 'classs'])
+        
+        body = 'Deleting resource:<br>'
+        body += 'Namespace: %s<br>' % namespace
+        body += 'Index_name: %s<br>' % index_name
+        body += 'GBIFdatasetid: %s<br>' % gbifdatasetid
+        body += 'InstitutionCode: %s<br>' % icode
+        body += 'Class: %s<br>' % classs
+        body += 'Batch size: %s<br>' % batch_size
+        body += 'Max delete: %s<br>' % max_delete
+        body += 'Dry run: %s<br>' % dryrun
+        logging.info(body)
+        self.response.out.write(body)
+
+        if dryrun:
+            logging.info('\n==IndexDeleteDataSet(%s, %s, %s, %s, %s, %s, %s, %s, %s)==' % 
+                        (gbifdatasetid, namespace, index_name, batch_size, ndeleted, 
+                         max_delete, dryrun, icode, classs) )
+
+        deleted_so_far=0
+        if ndeleted is not None and ndeleted != '':
+            deleted_so_far = int(ndeleted)
+        bsize=200
+        if batch_size is not None and batch_size != '':
+            bsize = int(batch_size)
+        if max_delete is None or max_delete == '':
+            maxdel = deleted_so_far + bsize + 1
+        else:
+            maxdel = int(max_delete)
+        
+        # Set the batch size to not exceed the maximum number of docs to delete.
+        if deleted_so_far + bsize > maxdel:
+            bsize = maxdel-deleted_so_far
+            
+        querystr = 'gbifdatasetid:%s' % gbifdatasetid
+        if icode is not None and len(icode)>0:
+            querystr += ' institutioncode:%s' % icode
+        if classs is not None and len(classs)>0:
+            querystr += ' class:%s' % classs
+
+        logging.info('Query: %s namespace: %s index: %s' % (querystr, namespace, index_name) )
+
+        # Set task queue characteristics in queue.yaml to retry tasks that fail.
+        # Define the query by using a Query object.
+        query = search.Query(querystr, options=search.QueryOptions(limit=bsize, ids_only=True) )
+        index = search.Index(index_name, namespace=namespace)
+        docs = index.search(query)
+        ids = [doc.doc_id for doc in docs]
+
+        if len(ids) < 1:
+            logging.info('No documents for gbifdatasetid=%s left to delete in %s.%s.' % 
+                        (gbifdatasetid, namespace, index_name) )
+            return
+
+        logging.info('Deleting %s documents.\nFirst: %s\nLast:  %s' % 
+                    ( len(ids), ids[0], ids[-1] ) )
+        index.delete(ids)
+        deleted_so_far = deleted_so_far + len(ids)
+        
+        params = dict(index_name=index_name, namespace=namespace, 
+                      batch_size=batch_size, max_delete=max_delete, 
+                      ndeleted=deleted_so_far, gbifdatasetid=gbifdatasetid, icode=icode, classs=classs)
+
+        if dryrun:
+            params['dryrun'] = 1
+
+        if deleted_so_far < maxdel and len(ids)==bsize:
+            body = 'Queuing task index-delete-dataset with params %s<br>' % params
+            logging.info(body)
+            self.response.out.write(body)
+            taskqueue.add(url='/index-delete-dataset', params=params, 
+                          queue_name="index-delete-dataset")
+        else:
+            body = 'Finished index-delete-dataset:<br>'
             body += 'Namespace: %s<br>' % namespace
             body += 'Index_name: %s<br>' % index_name
             body += 'Documents removed: %s<p>' % deleted_so_far
@@ -416,6 +502,7 @@ routes = [
     webapp2.Route(r'/bootstrap-gcs', handler='indexer.BootstrapGcs:get'),
     webapp2.Route(r'/index-gcs-path', handler='indexer.IndexGcsPath:get'),
     webapp2.Route(r'/index-gcs-path-finalize', handler='indexer.IndexGcsPath:finalize'),
+    webapp2.Route(r'/index-delete-dataset', handler='indexer.IndexDeleteDataSet:get'),
     webapp2.Route(r'/index-delete-resource', handler='indexer.IndexDeleteResource:get'),
     webapp2.Route(r'/index-find-record', handler='indexer.IndexFindRecord:get'),
 
