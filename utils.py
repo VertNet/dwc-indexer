@@ -10,7 +10,6 @@ import htmlentitydefs
 import os
 import codecs
 import unicodedata
-from google.appengine.api import files
 from mapreduce import context
 
 IS_DEV = 'Development' in os.environ['SERVER_SOFTWARE']
@@ -505,33 +504,6 @@ def get_rec_dict(rec):
         filename = '/gs/vn-indexer/failures-%s-%s.csv' % (namespace, resource)
         log = cls.get_or_insert(key_name=filename, namespace=namespace)
         return log
-
-def handle_failed_index_put(data, resource, did, write_path, mrid):
-    logging.info('Handling failed index.put() - mrid:%s did:%s write_path:%s' % 
-                (mrid, did, write_path))
-    max_retries = 5
-    retry_count = 0
-
-    line = '\t'.join([data[x] for x in HEADER])
-
-    # Write line to file:
-    while retry_count < max_retries:
-        try:
-            with files.open(write_path, 'a') as f:
-                f.write('%s\n' % line)
-                f.close(finalize=False)
-                logging.info('Successfully logged failure to GCS for %s' % did)
-                return
-        except:
-            logging.error('Failure %s of %s to write line to failure log: %s' % 
-                         (retry_count, max_retries, line))
-            retry_count += 1
-
-    logging.critical('Failed to index and failed to log %s' % did)
-    namespace = namespace_manager.get_namespace()
-    job = IndexJob.get_by_id(mrid, namespace=namespace)
-    job.failed_logs.append(did)
-    job.put()
 
 # def full_text_key_trim(rec):
 #     """Returns a record rec with non-full-text-indexed terms removed."""

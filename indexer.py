@@ -18,15 +18,10 @@ import logging
 import os
 import time
 import webapp2
-
 import utils
 import json
-
 import cloudstorage as gcs
-
 from datetime import datetime
-
-from google.appengine.api import files
 from google.appengine.api import namespace_manager
 from google.appengine.api import search
 from google.appengine.api import taskqueue
@@ -154,7 +149,6 @@ class IndexGcsPath(webapp2.RequestHandler):
         if not job:
             return
         logging.info('Finalizing index job for resource %s' % job.resource)
-        # files.finalize(job.write_path)
         job.done = True
         job.put()
         logging.info('Index job finalized for resource %s' % job.resource)
