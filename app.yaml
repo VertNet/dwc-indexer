@@ -22,6 +22,9 @@ runtime: python27
 threadsafe: false
 api_version: 1
 
+includes:
+- mapreduce/include.yaml
+
 libraries:
 - name: jinja2
   version: "latest"
@@ -29,9 +32,9 @@ libraries:
   version: "latest"
 
 handlers:
-- url: /mapreduce(/.*)?
-  script: lib/mapreduce/main.py
-  login: admin
+#- url: /mapreduce(/.*)?
+#  script: lib/mapreduce/main.py
+#  login: admin
 
 - url: /.*
   script: indexer.handler
