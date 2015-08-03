@@ -1,4 +1,16 @@
 # Copyright 2012 Google Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+# either express or implied. See the License for the specific
+# language governing permissions and limitations under the License.
 
 """Python wrappers for the Google Storage RESTful API."""
 
@@ -11,7 +23,6 @@ __all__ = ['ReadBuffer',
           ]
 
 import collections
-import logging
 import os
 import urlparse
 
@@ -158,6 +169,39 @@ class _StorageApi(rest_api._RestApi):
     """GET a bucket."""
     return self.do_request_async(self.api_url + path, 'GET', **kwds)
 
+  def compose_object(self, file_list, destination_file, content_type):
+    """COMPOSE multiple objects together.
+
+    Using the given list of files, calls the put object with the compose flag.
+    This call merges all the files into the destination file.
+
+    Args:
+      file_list: list of dicts with the file name.
+      destination_file: Path to the destination file.
+      content_type: Content type for the destination file.
+    """
+
+    xml_setting_list = ['<ComposeRequest>']
+
+    for meta_data in file_list:
+      xml_setting_list.append('<Component>')
+      for key, val in meta_data.iteritems():
+        xml_setting_list.append('<%s>%s</%s>' % (key, val, key))
+      xml_setting_list.append('</Component>')
+    xml_setting_list.append('</ComposeRequest>')
+    xml = ''.join(xml_setting_list)
+
+    if content_type is not None:
+      headers = {'Content-Type': content_type}
+    else:
+      headers = None
+    status, resp_headers, content = self.put_object(
+        api_utils._quote_filename(destination_file) + '?compose',
+        payload=xml,
+        headers=headers)
+    errors.check_status(status, [200], destination_file, resp_headers,
+                        body=content)
+
 
 _StorageApi = rest_api.add_sync_methods(_StorageApi)
 
@@ -172,36 +216,47 @@ class ReadBuffer(object):
                api,
                path,
                buffer_size=DEFAULT_BUFFER_SIZE,
-               max_request_size=MAX_REQUEST_SIZE):
+               max_request_size=MAX_REQUEST_SIZE,
+               offset=0):
     """Constructor.
 
     Args:
       api: A StorageApi instance.
-      path: Path to the object, e.g. '/mybucket/myfile'.
+      path: Quoted/escaped path to the object, e.g. /mybucket/myfile
       buffer_size: buffer size. The ReadBuffer keeps
         one buffer. But there may be a pending future that contains
         a second buffer. This size must be less than max_request_size.
       max_request_size: Max bytes to request in one urlfetch.
+      offset: Number of bytes to skip at the start of the file. If None, 0 is
+        used.
     """
     self._api = api
-    self.name = path
+    self._path = path
+    self.name = api_utils._unquote_filename(path)
     self.closed = False
 
     assert buffer_size <= max_request_size
     self._buffer_size = buffer_size
     self._max_request_size = max_request_size
-    self._offset = 0
+    self._offset = offset
+
     self._buffer = _Buffer()
     self._etag = None
 
-    self._request_next_buffer()
+    get_future = self._get_segment(offset, self._buffer_size, check_response=False)
 
-    status, headers, _ = self._api.head_object(path)
-    errors.check_status(status, [200], path, resp_headers=headers)
-    self._file_size = long(headers['content-length'])
+    status, headers, content = self._api.head_object(path)
+    errors.check_status(status, [200], path, resp_headers=headers, body=content)
+    self._file_size = long(common.get_stored_content_length(headers))
     self._check_etag(headers.get('etag'))
-    if self._file_size == 0:
-      self._buffer_future = None
+
+    self._buffer_future = None
+
+    if self._file_size != 0:
+      content, check_response_closure = get_future.get_result()
+      check_response_closure()
+      self._buffer.reset(content)
+      self._request_next_buffer()
 
   def __getstate__(self):
     """Store state as part of serialization/pickling.
@@ -215,7 +270,7 @@ class ReadBuffer(object):
       A dictionary with the state of this object
     """
     return {'api': self._api,
-            'name': self.name,
+            'path': self._path,
             'buffer_size': self._buffer_size,
             'request_size': self._max_request_size,
             'etag': self._etag,
@@ -232,7 +287,8 @@ class ReadBuffer(object):
     Along with restoring the state, pre-fetch the next read buffer.
     """
     self._api = state['api']
-    self.name = state['name']
+    self._path = state['path']
+    self.name = api_utils._unquote_filename(self._path)
     self._buffer_size = state['buffer_size']
     self._max_request_size = state['request_size']
     self._etag = state['etag']
@@ -359,11 +415,11 @@ class ReadBuffer(object):
   def _request_next_buffer(self):
     """Request next buffer.
 
-    Requires self._offset and self._buffer are in consistent state
+    Requires self._offset and self._buffer are in consistent state.
     """
     self._buffer_future = None
     next_offset = self._offset + self._buffer.remaining()
-    if not hasattr(self, '_file_size') or next_offset != self._file_size:
+    if next_offset != self._file_size:
       self._buffer_future = self._get_segment(next_offset,
                                               self._buffer_size)
 
@@ -392,11 +448,11 @@ class ReadBuffer(object):
       request_size -= self._max_request_size
       start += self._max_request_size
     if start < end:
-      futures.append(self._get_segment(start, end-start))
+      futures.append(self._get_segment(start, end - start))
     return [fut.get_result() for fut in futures]
 
   @ndb.tasklet
-  def _get_segment(self, start, request_size):
+  def _get_segment(self, start, request_size, check_response=True):
     """Get a segment of the file from Google Storage.
 
     Args:
@@ -405,9 +461,15 @@ class ReadBuffer(object):
       request_size: number of bytes to request. Have to be small enough
         for a single urlfetch request. May go over the logical range of the
         file.
+      check_response: True to check the validity of GCS response automatically
+        before the future returns. False otherwise. See Yields section.
 
     Yields:
-      a segment [start, start + request_size) of the file.
+      If check_response is True, the segment [start, start + request_size)
+      of the file.
+      Otherwise, a tuple. The first element is the unverified file segment.
+      The second element is a closure that checks response. Caller should
+      first invoke the closure before consuing the file segment.
 
     Raises:
       ValueError: if the file has changed while reading.
@@ -416,10 +478,15 @@ class ReadBuffer(object):
     content_range = '%d-%d' % (start, end)
     headers = {'Range': 'bytes=' + content_range}
     status, resp_headers, content = yield self._api.get_object_async(
-        self.name, headers=headers)
-    errors.check_status(status, [200, 206], self.name, headers, resp_headers)
-    self._check_etag(resp_headers.get('etag'))
-    raise ndb.Return(content)
+        self._path, headers=headers)
+    def _checker():
+      errors.check_status(status, [200, 206], self._path, headers,
+                          resp_headers, body=content)
+      self._check_etag(resp_headers.get('etag'))
+    if check_response:
+      _checker()
+      raise ndb.Return(content)
+    raise ndb.Return(content, _checker)
 
   def _check_etag(self, etag):
     """Check if etag is the same across requests to GCS.
@@ -586,7 +653,9 @@ class StreamingBuffer(object):
 
   _blocksize = 256 * 1024
 
-  _maxrequestsize = 16 * _blocksize
+  _flushsize = 8 * _blocksize
+
+  _maxrequestsize = 9 * 4 * _blocksize
 
   def __init__(self,
                api,
@@ -597,17 +666,22 @@ class StreamingBuffer(object):
 
     Args:
       api: A StorageApi instance.
-      path: Path to the object, e.g. '/mybucket/myfile'.
+      path: Quoted/escaped path to the object, e.g. /mybucket/myfile
       content_type: Optional content-type; Default value is
         delegate to Google Cloud Storage.
       gcs_headers: additional gs headers as a str->str dict, e.g
         {'x-goog-acl': 'private', 'x-goog-meta-foo': 'foo'}.
+    Raises:
+      IOError: When this location can not be found.
     """
     assert self._maxrequestsize > self._blocksize
     assert self._maxrequestsize % self._blocksize == 0
+    assert self._maxrequestsize >= self._flushsize
 
     self._api = api
-    self.name = path
+    self._path = path
+
+    self.name = api_utils._unquote_filename(path)
     self.closed = False
 
     self._buffer = collections.deque()
@@ -620,13 +694,14 @@ class StreamingBuffer(object):
       headers['content-type'] = content_type
     if gcs_headers:
       headers.update(gcs_headers)
-    status, resp_headers, _ = self._api.post_object(path, headers=headers)
-    errors.check_status(status, [201], path, headers, resp_headers)
+    status, resp_headers, content = self._api.post_object(path, headers=headers)
+    errors.check_status(status, [201], path, headers, resp_headers,
+                        body=content)
     loc = resp_headers.get('location')
     if not loc:
       raise IOError('No location header found in 201 response')
     parsed = urlparse.urlparse(loc)
-    self._path_with_token = '%s?%s' % (self.name, parsed.query)
+    self._path_with_token = '%s?%s' % (self._path, parsed.query)
 
   def __getstate__(self):
     """Store state as part of serialization/pickling.
@@ -641,7 +716,7 @@ class StreamingBuffer(object):
 
     """
     return {'api': self._api,
-            'name': self.name,
+            'path': self._path,
             'path_token': self._path_with_token,
             'buffer': self._buffer,
             'buffered': self._buffered,
@@ -662,7 +737,8 @@ class StreamingBuffer(object):
     self._written = state['written']
     self._offset = state['offset']
     self.closed = state['closed']
-    self.name = state['name']
+    self._path = state['path']
+    self.name = api_utils._unquote_filename(self._path)
 
   def write(self, data):
     """Write some bytes.
@@ -681,18 +757,18 @@ class StreamingBuffer(object):
     self._buffer.append(data)
     self._buffered += len(data)
     self._offset += len(data)
-    if self._buffered >= self._blocksize:
+    if self._buffered >= self._flushsize:
       self._flush()
 
   def flush(self):
-    """Dummy API.
+    """Flush as much as possible to GCS.
 
-    This API is provided because the zipfile module uses it.  It is a
-    no-op because Google Storage *requires* that all writes except for
-    the final one are multiples on 256K bytes aligned on 256K-byte
-    boundaries.
+    GCS *requires* that all writes except for the final one align on
+    256KB boundaries. So the internal buffer may still have < 256KB bytes left
+    after flush.
     """
     self._check_open()
+    self._flush(finish=False)
 
   def tell(self):
     """Return the total number of bytes passed to write() so far.
@@ -721,45 +797,44 @@ class StreamingBuffer(object):
   def _flush(self, finish=False):
     """Internal API to flush.
 
-    This is called only when the total amount of buffered data is at
+    Buffer is flushed to GCS only when the total amount of buffered data is at
     least self._blocksize, or to flush the final (incomplete) block of
     the file with finish=True.
     """
-    flush_len = 0 if finish else self._blocksize
+    while ((finish and self._buffered >= 0) or
+           (not finish and self._buffered >= self._blocksize)):
+      tmp_buffer = []
+      tmp_buffer_len = 0
 
-    while self._buffered >= flush_len:
-      buffer = []
-      buffered = 0
-
+      excess = 0
       while self._buffer:
         buf = self._buffer.popleft()
         size = len(buf)
         self._buffered -= size
-        buffer.append(buf)
-        buffered += size
-        if buffered >= self._maxrequestsize:
+        tmp_buffer.append(buf)
+        tmp_buffer_len += size
+        if tmp_buffer_len >= self._maxrequestsize:
+          excess = tmp_buffer_len - self._maxrequestsize
+          break
+        if not finish and (
+            tmp_buffer_len % self._blocksize + self._buffered <
+            self._blocksize):
+          excess = tmp_buffer_len % self._blocksize
           break
 
-      if buffered > self._maxrequestsize:
-        excess = buffered - self._maxrequestsize
-      elif finish:
-        excess = 0
-      else:
-        excess = buffered % self._blocksize
-
       if excess:
-        over = buffer.pop()
+        over = tmp_buffer.pop()
         size = len(over)
         assert size >= excess
-        buffered -= size
+        tmp_buffer_len -= size
         head, tail = over[:-excess], over[-excess:]
         self._buffer.appendleft(tail)
         self._buffered += len(tail)
         if head:
-          buffer.append(head)
-          buffered += len(head)
+          tmp_buffer.append(head)
+          tmp_buffer_len += len(head)
 
-      data = ''.join(buffer)
+      data = ''.join(tmp_buffer)
       file_len = '*'
       if finish and not self._buffered:
         file_len = self._written + len(data)
@@ -788,14 +863,14 @@ class StreamingBuffer(object):
     else:
       headers['content-range'] = ('bytes */%s' % file_len)
 
-    status, response_headers, _ = self._api.put_object(
+    status, response_headers, content = self._api.put_object(
         self._path_with_token, payload=data, headers=headers)
     if file_len == '*':
       expected = 308
     else:
       expected = 200
-    errors.check_status(status, [expected], self.name, headers,
-                        response_headers,
+    errors.check_status(status, [expected], self._path, headers,
+                        response_headers, content,
                         {'upload_path': self._path_with_token})
 
   def _get_offset_from_gcs(self):
@@ -808,10 +883,10 @@ class StreamingBuffer(object):
       -1 means nothing has been written.
     """
     headers = {'content-range': 'bytes */*'}
-    status, response_headers, _ = self._api.put_object(
+    status, response_headers, content = self._api.put_object(
         self._path_with_token, headers=headers)
-    errors.check_status(status, [308], self.name, headers,
-                        response_headers,
+    errors.check_status(status, [308], self._path, headers,
+                        response_headers, content,
                         {'upload_path': self._path_with_token})
     val = response_headers.get('range')
     if val is None:

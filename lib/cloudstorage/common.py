@@ -1,4 +1,16 @@
 # Copyright 2012 Google Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+# either express or implied. See the License for the specific
+# language governing permissions and limitations under the License.
 
 """Helpers shared by cloudstorage_stub and cloudstorage_api."""
 
@@ -13,6 +25,7 @@ __all__ = ['CS_XML_NS',
            'LOCAL_GCS_ENDPOINT',
            'local_run',
            'get_access_token',
+           'get_stored_content_length',
            'get_metadata',
            'GCSFileStat',
            'http_time_to_posix',
@@ -158,6 +171,25 @@ class GCSFileStat(object):
 
 
 CSFileStat = GCSFileStat
+
+
+def get_stored_content_length(headers):
+  """Return the content length (in bytes) of the object as stored in GCS.
+
+  x-goog-stored-content-length should always be present except when called via
+  the local dev_appserver. Therefore if it is not present we default to the
+  standard content-length header.
+
+  Args:
+    headers: a dict of headers from the http response.
+
+  Returns:
+    the stored content length.
+  """
+  length = headers.get('x-goog-stored-content-length')
+  if length is None:
+    length = headers.get('content-length')
+  return length
 
 
 def get_metadata(headers):

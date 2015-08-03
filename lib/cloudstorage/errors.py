@@ -1,4 +1,16 @@
 # Copyright 2012 Google Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+# either express or implied. See the License for the specific
+# language governing permissions and limitations under the License.
 
 """Google Cloud Storage specific Files API calls."""
 
@@ -12,6 +24,7 @@ __all__ = ['AuthorizationError',
            'FatalError',
            'FileClosedError',
            'ForbiddenError',
+           'InvalidRange',
            'NotFoundError',
            'ServerError',
            'TimeoutError',
@@ -81,7 +94,7 @@ class ServerError(TransientError):
 
 
 def check_status(status, expected, path, headers=None,
-                 resp_headers=None, extras=None):
+                 resp_headers=None, body=None, extras=None):
   """Check HTTP response status is expected.
 
   Args:
@@ -90,6 +103,7 @@ def check_status(status, expected, path, headers=None,
     path: filename or a path prefix.
     headers: HTTP request headers.
     resp_headers: HTTP response headers.
+    body: HTTP response body.
     extras: extra info to be logged verbatim if error occurs.
 
   Raises:
@@ -106,8 +120,9 @@ def check_status(status, expected, path, headers=None,
          'Path: %r.\n'
          'Request headers: %r.\n'
          'Response headers: %r.\n'
+         'Body: %r.\n'
          'Extra info: %r.\n' %
-         (expected, status, path, headers, resp_headers, extras))
+         (expected, status, path, headers, resp_headers, body, extras))
 
   if status == httplib.UNAUTHORIZED:
     raise AuthorizationError(msg)

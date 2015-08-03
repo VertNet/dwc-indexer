@@ -135,6 +135,7 @@ class IndexGcsPath(webapp2.RequestHandler):
         body += 'Resource: %s<br>' % gcs_path
         body += 'Processing rate: %s<br>' % processing_rate
         body += 'Shard count: %s<br>' % shard_count
+        body += 'mrid: %s<br>' % mrid
         logging.info(body)
         self.response.out.write(body)
 
