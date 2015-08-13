@@ -1,15 +1,15 @@
-from google.appengine.api import namespace_manager
 import json
 import logging
-from datetime import datetime
-from google.appengine.api import search
-from google.appengine.api.search import SortOptions, SortExpression
-from mapreduce import operation as op
 import re
 import htmlentitydefs
 import os
 import codecs
 import unicodedata
+from datetime import datetime
+from google.appengine.api import namespace_manager
+from google.appengine.api import search
+from google.appengine.api.search import SortOptions, SortExpression
+from mapreduce import operation as op
 from mapreduce import context
 
 IS_DEV = 'Development' in os.environ['SERVER_SOFTWARE']
@@ -62,99 +62,6 @@ HEADER = [
 'subgenus', 'specificepithet', 'infraspecificepithet', 'taxonrank', 'verbatimtaxonrank',
 'scientificnameauthorship', 'vernacularname', 'nomenclaturalcode', 'taxonomicstatus', 
 'nomenclaturalstatus', 'taxonremarks']
-
-# HEADER_2013_FIELDS_DEPRECATED = [
-# 'description', 'harvestid', 'eventattributes', 'identificationattributes', 
-# 'individualid', 'locationattributes', 'measurementaccuracy', 'measurementdeterminedby', 
-# 'measurementdetermineddate', 'measurementid', 'measurementmethod', 'measurementremarks', 
-# 'measurementtype', 'measurementunit', 'measurementvalue', 'occurrenceattributes', 
-# 'occurrencedetails', 'relatedresourceid', 'relationshipaccordingto', 
-# 'relationshipestablisheddate', 'relationshipofresource', 'relationshipremarks', 
-# 'resourceid', 'resourcerelationshipid', 'taxonattributes', 'locationaccordingto7', 
-# 'source', 'infraspecificmarker']
-# 
-# HEADER_2013 = [
-# 'pubdate', 'url', 'eml', 'dwca', 'title', 'icode', 'description', 'contact', 'orgname', 
-# 'email', 'emlrights', 'count', 'citation', 'networks', 'harvestid', 
-# 'id', 'associatedmedia', 'associatedoccurrences', 'associatedreferences', 
-# 'associatedsequences', 'associatedtaxa', 'basisofrecord', 'bed', 'behavior', 
-# 'catalognumber', 'collectioncode', 'collectionid', 'continent', 'coordinateprecision', 
-# 'coordinateuncertaintyinmeters', 'country', 'countrycode', 'county', 
-# 'datageneralizations', 'dateidentified', 'day', 'decimallatitude', 'decimallongitude', 
-# 'disposition', 'earliestageorloweststage', 'earliesteonorlowesteonothem', 
-# 'earliestepochorlowestseries', 'earliesteraorlowesterathem', 
-# 'earliestperiodorlowestsystem', 'enddayofyear', 'establishmentmeans', 'eventattributes', 
-# 'eventdate', 'eventid', 'eventremarks', 'eventtime', 'fieldnotes', 'fieldnumber', 
-# 'footprintspatialfit', 'footprintwkt', 'formation', 'geodeticdatum', 
-# 'geologicalcontextid', 'georeferenceprotocol', 'georeferenceremarks', 
-# 'georeferencesources', 'georeferenceverificationstatus', 'georeferencedby', 'group', 
-# 'habitat', 'highergeography', 'highergeographyid', 'highestbiostratigraphiczone', 
-# 'identificationattributes', 'identificationid', 'identificationqualifier', 
-# 'identificationreferences', 'identificationremarks', 'identifiedby', 'individualcount', 
-# 'individualid', 'informationwithheld', 'institutioncode', 'island', 'islandgroup', 
-# 'latestageorhigheststage', 'latesteonorhighesteonothem', 'latestepochorhighestseries', 
-# 'latesteraorhighesterathem', 'latestperiodorhighestsystem', 'lifestage', 
-# 'lithostratigraphicterms', 'locality', 'locationattributes', 'locationid', 
-# 'locationremarks', 'lowestbiostratigraphiczone', 'maximumdepthinmeters', 
-# 'maximumdistanceabovesurfaceinmeters', 'maximumelevationinmeters', 
-# 'measurementaccuracy', 'measurementdeterminedby', 'measurementdetermineddate', 
-# 'measurementid', 'measurementmethod', 'measurementremarks', 'measurementtype', 
-# 'measurementunit', 'measurementvalue', 
-# 'member', 'minimumdepthinmeters', 'minimumdistanceabovesurfaceinmeters', 
-# 'minimumelevationinmeters', 'month', 'occurrenceattributes', 'occurrencedetails', 
-# 'occurrenceid', 'occurrenceremarks', 'othercatalognumbers', 'pointradiusspatialfit', 
-# 'preparations', 'previousidentifications', 'recordnumber', 'recordedby', 
-# 'relatedresourceid', 'relationshipaccordingto', 'relationshipestablisheddate', 
-# 'relationshipofresource', 'relationshipremarks', 
-# 'reproductivecondition', 
-# 'resourceid', 'resourcerelationshipid', 
-# 'samplingprotocol', 'sex', 'startdayofyear', 'stateprovince', 'taxonattributes', 
-# 'typestatus', 'verbatimcoordinatesystem', 'verbatimcoordinates', 'verbatimdepth', 
-# 'verbatimelevation', 'verbatimeventdate', 'verbatimlatitude', 'verbatimlocality', 
-# 'verbatimlongitude', 'waterbody', 'year', 'footprintsrs', 'georeferenceddate', 
-# 'identificationverificationstatus', 'institutionid', 'locationaccordingto', 
-# 'municipality', 'occurrencestatus', 'ownerinstitutioncode', 'samplingeffort', 
-# 'verbatimsrs', 'locationaccordingto7', 'taxonid', 'taxonconceptid', 'datasetid', 
-# 'datasetname', 'source', 'modified', 'accessrights', 'rights', 'rightsholder', 
-# 'language', 'higherclassification', 'kingdom', 'phylum', 'classs', 'order', 
-# 'family', 'genus', 'subgenus', 'specificepithet', 'infraspecificepithet', 
-# 'scientificname', 'scientificnameid', 'vernacularname', 'taxonrank', 
-# 'verbatimtaxonrank', 'infraspecificmarker', 'scientificnameauthorship', 
-# 'nomenclaturalcode', 'namepublishedin', 'namepublishedinid', 'taxonomicstatus', 
-# 'nomenclaturalstatus', 'nameaccordingto', 'nameaccordingtoid', 'parentnameusageid', 
-# 'parentnameusage', 'originalnameusageid', 'originalnameusage', 'acceptednameusageid', 
-# 'acceptednameusage', 'taxonremarks', 'dynamicproperties', 'namepublishedinyear']
-# 
-# FULL_TEXT_KEYS_2013 = [
-# 'type', 'institutionid', 'collectionid', 'institutioncode', 'collectioncode', 
-# 'datasetname', 'basisofrecord', 'dynamicproperties', 'occurrenceid', 'catalognumber', 
-# 'occurrenceremarks', 'recordnumber', 'recordedby', 'individualid', 'sex', 'lifestage', 
-# 'reproductivecondition', 'behavior', 'establishmentmeans', 'preparations', 'disposition',
-# 'othercatalognumbers', 'previousidentifications', 'materialsampleid', 
-# 'verbatimeventdate', 'habitat', 'fieldnumber', 'fieldnotes', 'highergeography', 
-# 'continent', 'waterbody', 'islandgroup', 'island', 'country', 'countrycode', 
-# 'stateprovince', 'county', 'municipality', 'locality', 'verbatimlocality', 
-# 'verbatimelevation', 'verbatimdepth', 'geodeticdatum', 'georeferencedby', 
-# 'georeferenceprotocol', 'georeferencesources', 'georeferenceverificationstatus',
-# 'georeferenceremarks', 'earliesteonorlowesteonothem', 'latesteonorhighesteonothem', 
-# 'earliesteraorlowesterathem', 'latesteraorhighesterathem', 
-# 'earliestperiodorlowestsystem', 'latestperiodorhighestsystem', 
-# 'earliestepochorlowestseries', 'latestepochorhighestseries', 'earliestageorloweststage',
-# 'latestageorhigheststage', 'lowestbiostratigraphiczone', 'highestbiostratigraphiczone', 
-# 'lithostratigraphicterms', 'group', 'formation', 'member', 'bed', 'identifiedby', 
-# 'identificationreferences', 'identificationverificationstatus', 'identificationremarks',
-# 'identificationqualifier', 'typestatus', 'higherclassification', 'kingdom', 'phylum', 
-# 'class', 'order', 'family', 'genus', 'subgenus', 'specificepithet', 
-# 'infraspecificepithet', 'taxonrank', 'vernacularname']
-# 
-# NON_DWC_HEADER_KEYS_2013 = [
-# 'pubdate', 'url', 'eml', 'dwca', 'title', 'icode', 'description', 'contact', 'orgname', 
-# 'email', 'emlrights', 'count', 'citation', 'networks', 'harvestid', 
-# 'measurementaccuracy', 'measurementdeterminedby', 'measurementdetermineddate', 
-# 'measurementid', 'measurementmethod', 'measurementremarks', 'measurementtype', 
-# 'measurementunit', 'measurementvalue', 'relatedresourceid', 'relationshipaccordingto', 
-# 'relationshipestablisheddate', 'relationshipofresource', 'relationshipremarks', 
-# 'resourceid', 'resourcerelationshipid']
 
 def is_float(str):
     """Return the value of str as a float if possible, otherwise return None."""
@@ -331,12 +238,6 @@ def has_tissue(rec):
                 return 1
     return 0
 
-# def has_typestatus(rec):
-#     """Return 1 if the rec has the typestatus field populated, otherwise return 0."""
-#     if rec.has_key('typestatus'):
-#         return 1
-#     return 0
-
 def has_license(rec):
     """Return 1 if the rec has the iptlicense or the license field populated, otherwise return 0."""
     if rec.has_key('license'):
@@ -373,14 +274,6 @@ def is_fossil(rec,res_id):
             return 1
     return 0
 
-# This function may no longer be in use.
-# def network(rec, network):
-#     if rec.has_key('networks'):
-#         networks = [x.lower() for x in rec['networks'].split(',')]
-#         if network in networks:
-#             return 1
-#     return 0
-
 def _coordinateuncertaintyinmeters(unc):
     """Return the value of unc as a rounded up integer if it is a number greater than zero, otherwise return None."""
     uncertaintyinmeters = is_float(unc)
@@ -414,14 +307,6 @@ def _type(rec):
             return 'specimen'
         return 'observation'
     return 'both'
-
-# This function may no longer be in use.
-# def _rec(rec):
-#     """Remove the listed field from rec."""
-#     for x in ['pubdate','url','eml','dwca','title','icode','description',
-#         'contact','orgname','email','emlrights','count','citation','networks','harvestid']:
-#         rec.pop(x)
-#     return json.dumps(rec)
 
 def eventdate_from_ymd(y,m,d):
     """Return the eventdate as ISO8601 based on year y, month m, and day d as strings."""
@@ -504,13 +389,6 @@ def get_rec_dict(rec):
         filename = '/gs/vn-indexer/failures-%s-%s.csv' % (namespace, resource)
         log = cls.get_or_insert(key_name=filename, namespace=namespace)
         return log
-
-# def full_text_key_trim(rec):
-#     """Returns a record rec with non-full-text-indexed terms removed."""
-#     for key in rec.keys():
-#         if key not in FULL_TEXT_KEYS:
-#             rec.pop(key)
-#     return rec
 
 def verbatim_dwc(rec, keyname):
     """Returns a record with verbatim original Darwin Core fields plus the keyname field, minus any empty fields."""
@@ -728,22 +606,15 @@ def index_doc(doc, index_name, namespace, issue=None):
             retry_count += 1
     logging.error('Failed to index: %s' % doc.doc_id)
 
-    # Failed to index record, so handle it:
-    # resource = '%s-%s' % (resource_slug, data['harvestid'])
-    # did = data['keyname']
-    # ctx = context.get()
-    # mrid = ctx.mapreduce_id
-    # params = ctx.mapreduce_spec.mapper.params
-    # write_path = params['write_path']
-    # handle_failed_index_put(data, resource, did, write_path, mrid)
+def build_search_index(readbuffer):
+    # readbuffer should be a tuple from GoogleCloudLineInputReader composed of a
+    # tuple of the form ((file_name, offset), line)
 
-def build_search_index(entity):
     # Get namespace from mapreduce job and set it.
     ctx = context.get()
     params = ctx.mapreduce_spec.mapper.params
     namespace = params['namespace']
     index_name = params['index_name']
-    #namespace_manager.set_namespace(namespace)
     rightnow=datetime.now()
     today=rightnow.day
     if today < 10:
@@ -758,14 +629,17 @@ def build_search_index(entity):
     indexdate='%s-%s-%s'  % (rightnow.year, month, day)
 
     try:
-        data = get_rec_dict(dict(zip(HEADER, entity.split('\t'))))
-#        logging.info('Did get_rec_dict() on %s OK! data: %s' % (indexdate, data))
+        # Get the row out of the input buffer
+        row=readbuffer[1]
+        # Create a dictionary from the HEADER and the row
+        data = get_rec_dict(dict(zip(HEADER, row.split('\t'))))
+#        logging.info('Data from %s offset %s: %s' % (readbuffer[0][0], readbuffer[0][1], data))
+        # Create an index document from the row dictionary
         doc = index_record(data, indexdate)
-#        logging.info('Did index_record(data) OK!! doc: %s' % doc)
+        # Store the document in the given index
         index_doc(doc, index_name, namespace)
-#        logging.info('Did index_doc() OK!!!')
     except Exception, e:
-        logging.error('%s\n%s' % (e, data))
+        logging.error('%s\n%s' % (e, readbuffer))
 
 def _get_rec(doc):
     for field in doc.fields:

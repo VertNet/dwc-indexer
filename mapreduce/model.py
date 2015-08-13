@@ -38,14 +38,15 @@ __all__ = ["MapreduceState",
 
 import cgi
 import datetime
-import os
-import random
-import time
 import urllib
 import zlib
+from graphy import bar_chart
+from graphy.backends import google_chart_api
 
-from mapreduce.lib.graphy.backends import google_chart_api
-from mapreduce.lib import simplejson
+try:
+  import json
+except ImportError:
+  import simplejson as json
 
 from google.appengine.api import memcache
 from google.appengine.api import taskqueue
@@ -224,30 +225,6 @@ class HugeTask(object):
     return result
 
 
-# Ridiculous future UNIX epoch time, 500 years from now.
-_FUTURE_TIME = 2**34
-
-
-def _get_descending_key(gettime=time.time):
-  """Returns a key name lexically ordered by time descending.
-
-  This lets us have a key name for use with Datastore entities which returns
-  rows in time descending order when it is scanned in lexically ascending order,
-  allowing us to bypass index building for descending indexes.
-
-  Args:
-    gettime: Used for testing.
-
-  Returns:
-    A string with a time descending key.
-  """
-  now_descending = int((_FUTURE_TIME - gettime()) * 100)
-  request_id_hash = os.environ.get("REQUEST_ID_HASH")
-  if not request_id_hash:
-    request_id_hash = str(random.getrandbits(32))
-  return "%d%s" % (now_descending, request_id_hash)
-
-
 class CountersMap(json_util.JsonMixin):
   """Maintains map from counter name to counter value.
 
@@ -271,16 +248,17 @@ class CountersMap(json_util.JsonMixin):
     """Compute string representation."""
     return "mapreduce.model.CountersMap(%r)" % self.counters
 
-  def get(self, counter_name):
+  def get(self, counter_name, default=0):
     """Get current counter value.
 
     Args:
       counter_name: counter name as string.
+      default: default value if one doesn't exist.
 
     Returns:
       current counter value as int. 0 if counter was not set.
     """
-    return self.counters.get(counter_name, 0)
+    return self.counters.get(counter_name, default)
 
   def increment(self, counter_name, delta):
     """Increment counter value.
@@ -608,6 +586,7 @@ class MapreduceState(db.Model):
   _RESULTS = frozenset([RESULT_SUCCESS, RESULT_FAILED, RESULT_ABORTED])
 
   # Functional properties.
+  # TODO(user): Replace mapreduce_spec with job_config.
   mapreduce_spec = json_util.JsonProperty(MapreduceSpec, indexed=False)
   active = db.BooleanProperty(default=True, indexed=False)
   last_poll_time = db.DateTimeProperty(required=True)
@@ -655,17 +634,46 @@ class MapreduceState(db.Model):
     """
     return db.get(cls.get_key_by_job_id(mapreduce_id))
 
-  def set_processed_counts(self, shards_processed):
+  def set_processed_counts(self, shards_processed, shards_status):
     """Updates a chart url to display processed count for each shard.
 
     Args:
       shards_processed: list of integers with number of processed entities in
         each shard
     """
-    chart = google_chart_api.BarChart(shards_processed)
+    chart = google_chart_api.BarChart()
+
+    def filter_status(status_to_filter):
+      return [count if status == status_to_filter else 0
+              for count, status in zip(shards_processed, shards_status)]
+
+    if shards_status:
+      # Each index will have only one non-zero count, so stack them to color-
+      # code the bars by status
+      # These status values are computed in _update_state_from_shard_states,
+      # in mapreduce/handlers.py.
+      chart.stacked = True
+      chart.AddBars(filter_status("unknown"), color="404040")
+      chart.AddBars(filter_status("success"), color="00ac42")
+      chart.AddBars(filter_status("running"), color="3636a9")
+      chart.AddBars(filter_status("aborted"), color="e29e24")
+      chart.AddBars(filter_status("failed"), color="f6350f")
+    else:
+      chart.AddBars(shards_processed)
+
     shard_count = len(shards_processed)
 
-    if shards_processed:
+    if shard_count > 95:
+      # Auto-spacing does not work for large numbers of shards.
+      pixels_per_shard = 700.0 / shard_count
+      bar_thickness = int(pixels_per_shard * .9)
+
+      chart.style = bar_chart.BarChartStyle(bar_thickness=bar_thickness,
+        bar_gap=0.1, use_fractional_gap_spacing=True)
+
+    if shards_processed and shard_count <= 95:
+      # Adding labels puts us in danger of exceeding the URL length, only
+      # do it when we have a small amount of data to plot.
       # Only 16 labels on the whole chart.
       stride_length = max(1, shard_count / 16)
       chart.bottom.labels = []
@@ -704,13 +712,13 @@ class MapreduceState(db.Model):
       mapreduce_id = MapreduceState.new_mapreduce_id()
     state = MapreduceState(key_name=mapreduce_id,
                            last_poll_time=gettime())
-    state.set_processed_counts([])
+    state.set_processed_counts([], [])
     return state
 
   @staticmethod
   def new_mapreduce_id():
     """Generate new mapreduce id."""
-    return _get_descending_key()
+    return util._get_descending_key()
 
   def __eq__(self, other):
     if not isinstance(other, self.__class__):
@@ -813,11 +821,11 @@ class TransientShardState(object):
     """Create new TransientShardState from webapp request."""
     mapreduce_spec = MapreduceSpec.from_json_str(request.get("mapreduce_spec"))
     mapper_spec = mapreduce_spec.mapper
-    input_reader_spec_dict = simplejson.loads(request.get("input_reader_state"),
-                                              cls=json_util.JsonDecoder)
+    input_reader_spec_dict = json.loads(request.get("input_reader_state"),
+                                        cls=json_util.JsonDecoder)
     input_reader = mapper_spec.input_reader_class().from_json(
         input_reader_spec_dict)
-    initial_input_reader_spec_dict = simplejson.loads(
+    initial_input_reader_spec_dict = json.loads(
         request.get("initial_input_reader_state"), cls=json_util.JsonDecoder)
     initial_input_reader = mapper_spec.input_reader_class().from_json(
         initial_input_reader_spec_dict)
@@ -825,8 +833,8 @@ class TransientShardState(object):
     output_writer = None
     if mapper_spec.output_writer_class():
       output_writer = mapper_spec.output_writer_class().from_json(
-          simplejson.loads(request.get("output_writer_state", "{}"),
-                           cls=json_util.JsonDecoder))
+          json.loads(request.get("output_writer_state", "{}"),
+                     cls=json_util.JsonDecoder))
       assert isinstance(output_writer, mapper_spec.output_writer_class()), (
           "%s.from_json returned an instance of wrong class: %s" % (
               mapper_spec.output_writer_class(),
@@ -919,6 +927,7 @@ class ShardState(db.Model):
   # Functional properties.
   mapreduce_id = db.StringProperty(required=True)
   active = db.BooleanProperty(default=True, indexed=False)
+  input_finished = db.BooleanProperty(default=False, indexed=False)
   counters_map = json_util.JsonProperty(
       CountersMap, default=CountersMap(), indexed=False)
   result_status = db.StringProperty(choices=_RESULTS, indexed=False)
@@ -967,6 +976,7 @@ class ShardState(db.Model):
     self.last_work_item = ""
     self.active = True
     self.result_status = None
+    self.input_finished = False
     self.counters_map = CountersMap()
     self.slice_id = 0
     self.slice_start_time = None
@@ -998,6 +1008,12 @@ class ShardState(db.Model):
   def set_for_abort(self):
     self.active = False
     self.result_status = self.RESULT_ABORTED
+
+  def set_input_finished(self):
+    self.input_finished = True
+
+  def is_input_finished(self):
+    return self.input_finished
 
   def set_for_success(self):
     self.active = False
@@ -1089,9 +1105,6 @@ class ShardState(db.Model):
   @classmethod
   def find_all_by_mapreduce_state(cls, mapreduce_state):
     """Find all shard states for given mapreduce.
-
-    Never runs within a transaction since it may touch >5 entity groups (one
-    for each shard).
 
     Args:
       mapreduce_state: MapreduceState instance
@@ -1198,12 +1211,14 @@ class QuerySpec(object):
   """Encapsulates everything about a query needed by DatastoreInputReader."""
 
   DEFAULT_BATCH_SIZE = 50
+  DEFAULT_OVERSPLIT_FACTOR = 1
 
   def __init__(self,
                entity_kind,
                keys_only=None,
                filters=None,
                batch_size=None,
+               oversplit_factor=None,
                model_class_path=None,
                app=None,
                ns=None):
@@ -1211,6 +1226,8 @@ class QuerySpec(object):
     self.keys_only = keys_only or False
     self.filters = filters or None
     self.batch_size = batch_size or self.DEFAULT_BATCH_SIZE
+    self.oversplit_factor = (oversplit_factor or
+                             self.DEFAULT_OVERSPLIT_FACTOR)
     self.model_class_path = model_class_path
     self.app = app
     self.ns = ns
@@ -1220,6 +1237,7 @@ class QuerySpec(object):
             "keys_only": self.keys_only,
             "filters": self.filters,
             "batch_size": self.batch_size,
+            "oversplit_factor": self.oversplit_factor,
             "model_class_path": self.model_class_path,
             "app": self.app,
             "ns": self.ns}
@@ -1230,6 +1248,7 @@ class QuerySpec(object):
                json["keys_only"],
                json["filters"],
                json["batch_size"],
+               json["oversplit_factor"],
                json["model_class_path"],
                json["app"],
                json["ns"])

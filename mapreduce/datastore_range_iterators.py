@@ -4,7 +4,7 @@
 
 
 # pylint: disable=g-bad-name
-
+import itertools
 from google.appengine.datastore import datastore_query
 from google.appengine.datastore import datastore_rpc
 from google.appengine.ext import db
@@ -15,7 +15,6 @@ from mapreduce import model
 from mapreduce import namespace_range
 from mapreduce import property_range
 from mapreduce import util
-
 
 __all__ = [
     "RangeIteratorFactory",
@@ -28,14 +27,14 @@ __all__ = [
 
 
 class RangeIteratorFactory(object):
-  """Factory to create RangeIterators."""
+  """Factory to create RangeIterator."""
 
   @classmethod
   def create_property_range_iterator(cls,
                                      p_range,
                                      ns_range,
                                      query_spec):
-    """Create a RangeIterator.
+    """Create a _PropertyRangeModelIterator.
 
     Args:
       p_range: a property_range.PropertyRange object that defines the
@@ -53,11 +52,24 @@ class RangeIteratorFactory(object):
                                        query_spec)
 
   @classmethod
+  def create_multi_property_range_iterator(cls,
+                                           p_range_iters):
+    """Create a RangeIterator.
+
+    Args:
+      p_range_iters: a list of RangeIterator objects to chain together.
+
+    Returns:
+      a RangeIterator.
+    """
+    return _MultiPropertyRangeModelIterator(p_range_iters)
+
+  @classmethod
   def create_key_ranges_iterator(cls,
                                  k_ranges,
                                  query_spec,
                                  key_range_iter_cls):
-    """Create a RangeIterator.
+    """Create a _KeyRangesIterator.
 
     Args:
       k_ranges: a key_ranges._KeyRanges object.
@@ -77,13 +89,18 @@ class RangeIteratorFactory(object):
 
 
 class RangeIterator(json_util.JsonMixin):
-  """Interface for DatastoreInputReader helper iterators.
+  """Interface for DatastoreInputReader helpers.
 
-  RangeIterator defines Python's generator interface and additional
-  marshaling functionality. Marshaling saves the state of the generator.
-  Unmarshaling guarantees any new generator created can resume where the
-  old generator left off. When the produced generator raises StopIteration,
-  the behavior of marshaling/unmarshaling is NOT defined.
+  Technically, RangeIterator is a container. It contains all datastore
+  entities that fall under a certain range (key range or proprety range).
+  It implements __iter__, which returns a generator that can iterate
+  through entities. It also implements marshalling logics. Marshalling
+  saves the state of the container so that any new generator created
+  can resume where the old generator left off.
+
+  Caveats:
+    1. Calling next() on the generators may also modify the container.
+    2. Marshlling after StopIteration is raised has undefined behavior.
   """
 
   def __iter__(self):
@@ -157,6 +174,7 @@ class _PropertyRangeModelIterator(RangeIterator):
                                        produce_cursors=True)
         for model_instance in self._query:
           yield model_instance
+      self._query = None
       self._cursor = None
       if ns != self._ns_range.namespace_end:
         self._ns_range = self._ns_range.with_start_after(ns)
@@ -170,7 +188,7 @@ class _PropertyRangeModelIterator(RangeIterator):
       else:
         cursor = self._query.cursor_after()
 
-    if isinstance(cursor, basestring):
+    if cursor is None or isinstance(cursor, basestring):
       cursor_object = False
     else:
       cursor_object = True
@@ -200,6 +218,69 @@ class _PropertyRangeModelIterator(RangeIterator):
       obj._cursor = datastore_query.Cursor.from_websafe_string(cursor)
     else:
       obj._cursor = cursor
+    return obj
+
+
+class _MultiPropertyRangeModelIterator(RangeIterator):
+  """Yields db/ndb model entities within a list of disjoint property ranges."""
+
+  def __init__(self, p_range_iters):
+    """Init.
+
+    Args:
+      p_range_iters: a list of _PropertyRangeModelIterator objects to chain
+      together.
+    """
+    self._iters = p_range_iters
+
+  def __repr__(self):
+    return "MultiPropertyRangeIterator combining %s" % str(
+      [str(it) for it in self._iters])
+
+  def __iter__(self):
+    """Iterate over entities.
+
+    Yields:
+      db model entities or ndb model entities if the model is defined with ndb.
+    """
+    for model_instance in itertools.chain.from_iterable(self._iters):
+      yield model_instance
+
+  def to_json(self):
+    """Inherit doc."""
+    json = {"name": self.__class__.__name__,
+            "num_ranges": len(self._iters)}
+
+    for i in xrange(len(self._iters)):
+      json_item = self._iters[i].to_json()
+      query_spec = json_item["query_spec"]
+      item_name = json_item["name"]
+      # Delete and move one level up
+      del json_item["query_spec"]
+      del json_item["name"]
+      json[str(i)] = json_item
+    # Store once to save space
+    json["query_spec"] = query_spec
+    json["item_name"] = item_name
+
+    return json
+
+  @classmethod
+  def from_json(cls, json):
+    """Inherit doc."""
+    num_ranges = int(json["num_ranges"])
+    query_spec = json["query_spec"]
+    item_name = json["item_name"]
+
+    p_range_iters = []
+    for i in xrange(num_ranges):
+      json_item = json[str(i)]
+      # Place query_spec, name back into each iterator
+      json_item["query_spec"] = query_spec
+      json_item["name"] = item_name
+      p_range_iters.append(_PropertyRangeModelIterator.from_json(json_item))
+
+    obj = cls(p_range_iters)
     return obj
 
 
@@ -265,6 +346,7 @@ class _KeyRangesIterator(RangeIterator):
     current_iter = None
     if json["current_iter"]:
       current_iter = key_range_iter_cls.from_json(json["current_iter"])
+    # pylint: disable=protected-access
     obj._current_iter = current_iter
     return obj
 
@@ -272,12 +354,18 @@ class _KeyRangesIterator(RangeIterator):
 # A map from class name to class of all RangeIterators.
 _RANGE_ITERATORS = {
     _PropertyRangeModelIterator.__name__: _PropertyRangeModelIterator,
+    _MultiPropertyRangeModelIterator.__name__: _MultiPropertyRangeModelIterator,
     _KeyRangesIterator.__name__: _KeyRangesIterator
     }
 
 
 class AbstractKeyRangeIterator(json_util.JsonMixin):
-  """Iterates over a single key_range.KeyRange and yields value for each key."""
+  """Iterates over a single key_range.KeyRange and yields value for each key.
+
+  All subclasses do the same thing: iterate over a single KeyRange.
+  They do so using different APIs (db, ndb, datastore) to return entities
+  of different types (db model, ndb model, datastore entity, raw proto).
+  """
 
   def __init__(self, k_range, query_spec):
     """Init.
@@ -375,7 +463,7 @@ class KeyRangeEntityIterator(AbstractKeyRangeIterator):
         self._query_spec.entity_kind, filters=self._query_spec.filters)
     for entity in self._query.Run(config=datastore_query.QueryOptions(
         batch_size=self._query_spec.batch_size,
-        keys_only=self._KEYS_ONLY,
+        keys_only=self._query_spec.keys_only or self._KEYS_ONLY,
         start_cursor=self._cursor)):
       yield entity
 

@@ -36,3 +36,6 @@ nosetests.xml
 .pydevproject
 
 storage/
+
+# Mac OS files
+.DS_Store

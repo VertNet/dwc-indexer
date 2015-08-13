@@ -29,6 +29,10 @@ from google.appengine.api import taskqueue
 from google.appengine.ext import ndb
 
 from mapreduce import control
+# Note: This code uses the Mapreduce library 
+# (from https://github.com/GoogleCloudPlatform/appengine-mapreduce) modified to 
+# include the a custom GoogleCloudStorageLineInputReader. Be aware of this before 
+# updating MapReduce.
 from mapreduce import input_readers
 
 from google.appengine.ext import db
@@ -40,15 +44,18 @@ DEV_BUCKET = '/vn-harvest'
 my_default_retry_params = gcs.RetryParams(initial_delay=0.2,
                                           max_delay=5.0,
                                           backoff_factor=2,
-                                          max_retry_period=15)
+                                          max_retry_period=4)
 
 gcs.set_default_retry_params(my_default_retry_params)
 
+indexer_version='2015-08-13T15:13:54+01:00'
 
 class IndexJob(ndb.Model):
     write_path = ndb.TextProperty()
     failed_logs = ndb.StringProperty(repeated=True)
     resource = ndb.StringProperty()
+    bucket_name = ndb.StringProperty()
+    files_list = ndb.StringProperty()
     namespace = ndb.StringProperty()
     done = ndb.BooleanProperty(default=False)
     failures = ndb.ComputedProperty(lambda self: len(self.failed_logs) > 1)
@@ -96,31 +103,102 @@ class BootstrapGcs(webapp2.RequestHandler):
         time.sleep(5)
         self.redirect('http://localhost:8000/blobstore')
 
+# Version using Files API FileInputReader
+# class IndexGcsPath-FilesAPI(webapp2.RequestHandler):
+#     def get(self):
+#         """Fires off an indexing MR job over files in GCS at supplied path."""
+#         input_class = (input_readers.__name__ + "." + 
+#                        input_readers.FileInputReader.__name__)
+#         gcs_path = self.request.get('gcs_path')
+#         shard_count = self.request.get_range('shard_count', default=8)
+#         processing_rate = self.request.get_range('processing_rate', default=100)
+#         now = datetime.now().isoformat().replace(':', '-')
+#         namespace = self.request.get('namespace', 'ns-' + now)
+#         index_name = self.request.get('index_name', 'dwc-' + now)
+#         files_pattern = '/gs/%s' % gcs_path
+# 
+#         # TODO: Create file on GCS to log any failed index puts:
+# 
+#         mrid = control.start_map(
+#             gcs_path,
+#             "utils.build_search_index1",
+#             input_class,
+#             {
+#                 "input_reader": dict(
+#                     files=[files_pattern],
+#                     format='lines'),
+#                 "resource": gcs_path,
+#                 "namespace": namespace,
+#                 "index_name": index_name,
+#                 "processing_rate": processing_rate,
+#                 "shard_count": shard_count
+#             },
+#             mapreduce_parameters={'done_callback': '/index-gcs-path-finalize'},
+#             shard_count=shard_count)
+# 
+#         body = 'Indexing resource:<br>'
+#         body += 'Namespace: %s<br>' % namespace
+#         body += 'Index_name: %s<br>' % index_name
+#         body += 'Resource: %s<br>' % gcs_path
+#         body += 'Processing rate: %s<br>' % processing_rate
+#         body += 'Shard count: %s<br>' % shard_count
+#         logging.info(body)
+#         self.response.out.write(body)
+# 
+#         IndexJob(id=mrid, resource=gcs_path, write_path='write_path', 
+#             failed_logs=['NONE'], namespace=namespace).put()
+# 
+#     def finalize(self):
+#         """Finalizes indexing MR job by finalizing files on GCS."""
+#         mrid = self.request.headers.get('Mapreduce-Id')
+#         job = IndexJob.get_by_id(mrid)
+#         logging.info('FINALIZING IndexGcsPath (Files API) JOB %s' % job)
+#         if not job:
+#             return
+#         logging.info('Finalizing index job for resource %s' % job.resource)
+#         job.done = True
+#         job.put()
+#         logging.info('Index job finalized for resource %s' % job.resource)
 
+# Version using GoogleCloudStorageLineInputReader
 class IndexGcsPath(webapp2.RequestHandler):
+    """Index the files in a list in a GCS bucket.
+       Example:
+       http://indexer.vertnet-portal.appspot.com/index-gcs-path?namespace=index-2014-02-06t2&index_name=dwc&bucket_name=vertnet-harvesting&files_list=data/2015-05-29/uwymv_herp-9f48b5c4-1e8f-42e9-89d5-abcddffae55f/*&shard_count=1
+       
+       http://indexer.vertnet-portal.appspot.com/index-gcs-path
+       ?namespace=index-2014-02-06t2
+       &index_name=dwc
+       &bucket_name=vertnet-harvesting
+       &files_list=data/2015-05-29/uwymv_herp-9f48b5c4-1e8f-42e9-89d5-abcddffae55f/*
+       &shard_count=1
+       """
     def get(self):
         """Fires off an indexing MR job over files in GCS at supplied path."""
-        input_class = (input_readers.__name__ + "." + 
-                       input_readers.FileInputReader.__name__)
-        gcs_path = self.request.get('gcs_path')
+        # Note: To make this work, the Mapreduce library had to be modified to include the 
+        # custom GoogleCloudStorageLineInputReader. Be aware of this if updating MapReduce.
+        global indexer_version
+        input_class = (input_readers.__name__ + "." +
+                    input_readers.GoogleCloudStorageLineInputReader.__name__)
         shard_count = self.request.get_range('shard_count', default=8)
         processing_rate = self.request.get_range('processing_rate', default=100)
         now = datetime.now().isoformat().replace(':', '-')
         namespace = self.request.get('namespace', 'ns-' + now)
         index_name = self.request.get('index_name', 'dwc-' + now)
-        files_pattern = '/gs/%s' % gcs_path
-
-        # TODO: Create file on GCS to log any failed index puts:
+        bucket_name = self.request.get('bucket_name')
+        files_list = self.request.get('files_list')
 
         mrid = control.start_map(
-            gcs_path,
+            files_list,
             "utils.build_search_index",
             input_class,
             {
-                "input_reader": dict(
-                    files=[files_pattern],
-                    format='lines'),
-                "resource": gcs_path,
+                "input_reader": {
+                    "bucket_name": bucket_name,
+                    "objects": [files_list]
+                },
+                "bucket_name": bucket_name,
+                "files_list": files_list,
                 "namespace": namespace,
                 "index_name": index_name,
                 "processing_rate": processing_rate,
@@ -129,32 +207,41 @@ class IndexGcsPath(webapp2.RequestHandler):
             mapreduce_parameters={'done_callback': '/index-gcs-path-finalize'},
             shard_count=shard_count)
 
-        body = 'Indexing resource:<br>'
+        body = 'Indexing resource: %s<br>' % files_list
+        body += 'Version: %s<br>' % indexer_version
         body += 'Namespace: %s<br>' % namespace
         body += 'Index_name: %s<br>' % index_name
-        body += 'Resource: %s<br>' % gcs_path
         body += 'Processing rate: %s<br>' % processing_rate
         body += 'Shard count: %s<br>' % shard_count
         body += 'mrid: %s<br>' % mrid
-        logging.info(body)
+        logging.warning(body)
         self.response.out.write(body)
 
-        IndexJob(id=mrid, resource=gcs_path, write_path='write_path', 
-            failed_logs=['NONE'], namespace=namespace).put()
+        IndexJob(id=mrid, write_path='write_path', bucket_name=bucket_name, 
+                files_list=files_list, failed_logs=['NONE'], namespace=namespace).put()
 
     def finalize(self):
         """Finalizes indexing MR job by finalizing files on GCS."""
         mrid = self.request.headers.get('Mapreduce-Id')
         job = IndexJob.get_by_id(mrid)
-        logging.info('FINALIZING JOB %s' % job)
+        logging.info('FINALIZING IndexGcsPath (Cloud Storage Library) JOB %s' % job)
         if not job:
             return
         logging.info('Finalizing index job for resource %s' % job.resource)
         job.done = True
         job.put()
         logging.info('Index job finalized for resource %s' % job.resource)
-                     
+
 class IndexDeleteResource(webapp2.RequestHandler):
+    """Remove the records from an index for a gbifdatasetid.
+       Example:
+       http://indexer.vertnet-portal.appspot.com/index-delete-dataset?gbifdatasetid=b11cbb9e-8ee0-4d9a-8eac-da5d5ab53a31&index_name=dwc&namespace=index-2014-02-06t2
+
+       http://indexer.vertnet-portal.appspot.com/index-delete-dataset
+       ?gbifdatasetid=b11cbb9e-8ee0-4d9a-8eac-da5d5ab53a31
+       &index_name=dwc
+       &namespace=index-2014-02-06t2
+       """
     def get(self):
         """Deletes documents matching resource, and, optionally icode and class."""
         index_name, namespace, resource, batch_size, ndeleted, \
@@ -172,7 +259,7 @@ class IndexDeleteResource(webapp2.RequestHandler):
         body += 'Batch size: %s<br>' % batch_size
         body += 'Max delete: %s<br>' % max_delete
         body += 'Dry run: %s<br>' % dryrun
-        logging.info(body)
+        logging.warning(body)
         self.response.out.write(body)
 
         if dryrun:

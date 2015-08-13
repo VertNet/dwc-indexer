@@ -7,6 +7,8 @@
 #    "map_job" prefix. But adding the prefix won't mandate the first type
 #    of user to type more.
 # 3. Class names should not have "map_job" prefix.
+from .input_reader import InputReader
 from .map_job_config import JobConfig
-from .map_job_control import start
+from .map_job_control import Job
 from .mapper import Mapper
+from .output_writer import OutputWriter

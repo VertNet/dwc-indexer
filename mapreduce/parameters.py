@@ -14,7 +14,7 @@ import pickle
 # For the mapreduce in python 25 runtime, this import will fail.
 # TODO(user): Remove all pipeline import protections after 25 mr defunct.
 try:
-  from mapreduce.lib.pipeline import util as pipeline_util
+  from pipeline import util as pipeline_util
 except ImportError:
   pipeline_util = None
 
@@ -79,23 +79,24 @@ class _JobConfigMeta(type):
 class _Option(object):
   """An option for _Config."""
 
-  def __init__(self, kind, required=False, default=None, can_be_none=False):
+  def __init__(self, kind, required=False, default_factory=None,
+               can_be_none=False):
     """Init.
 
     Args:
       kind: type of the option.
       required: whether user is required to supply a value.
-      default: default value if user didn't provide one.
+      default_factory: a factory, when called, returns the default value.
       can_be_none: whether value can be None.
 
     Raises:
       ValueError: if arguments aren't compatible.
     """
-    if required and default is not None:
-      raise ValueError("No default value when option is required.")
+    if required and default_factory is not None:
+      raise ValueError("No default_factory value when option is required.")
     self.kind = kind
     self.required = required
-    self.default = default
+    self.default_factory = default_factory
     self.can_be_none = can_be_none
 
 
@@ -127,29 +128,35 @@ class _Config(object):
 
   def _set_values(self, kwds, _lenient):
     for k, option in self._options.iteritems():
-      v = kwds.get(k, option.default)
+      v = kwds.get(k)
+      if v is None and option.default_factory:
+        v = option.default_factory()
       setattr(self, k, v)
       if _lenient:
         continue
       if v is None and option.can_be_none:
         continue
-      if issubclass(type(v), type) and not issubclass(v, option.kind):
+      if isinstance(v, type) and not issubclass(v, option.kind):
         raise TypeError(
-            "Expect subclass of %r for option %s" % (option.kind, k))
-      if not issubclass(type(v), type) and not isinstance(v, option.kind):
-        raise TypeError("Expect type %r for option %s" % (
-            option.kind, k))
+            "Expect subclass of %r for option %s. Got %r" % (
+                option.kind, k, v))
+      if not isinstance(v, type) and not isinstance(v, option.kind):
+        raise TypeError("Expect type %r for option %s. Got %r" % (
+            option.kind, k, v))
 
   def __eq__(self, other):
     if not isinstance(other, self.__class__):
       return False
     return other.__dict__ == self.__dict__
 
-  def _to_json(self):
+  def __repr__(self):
+    return str(self.__dict__)
+
+  def to_json(self):
     return {"config": pickle.dumps(self)}
 
   @classmethod
-  def _from_json(cls, json):
+  def from_json(cls, json):
     return pickle.loads(json["config"])
 
 
@@ -195,7 +202,10 @@ class _ConfigDefaults(object):
 
   SHARD_COUNT = 8
 
-  # Make this high because too many people are confused when mapper is too slow.
+  # Maximum number of mapper calls per second.
+  # This parameter is useful for testing to force short slices.
+  # Maybe make this a private constant instead.
+  # If people want to rate limit their jobs, they can reduce shard count.
   PROCESSING_RATE_PER_SEC = 1000000
 
   # This path will be changed by build process when this is a part of SDK.
@@ -205,12 +215,6 @@ class _ConfigDefaults(object):
   # The amount of time to perform scanning in one slice. New slice will be
   # scheduled as soon as current one takes this long.
   _SLICE_DURATION_SEC = 15
-
-  # See model.ShardState doc on slice_start_time. In second.
-  _LEASE_GRACE_PERIOD = 1
-
-  # See model.ShardState doc on slice_start_time. In second.
-  _REQUEST_EVENTUAL_TIMEOUT = 10 * 60 + 30
 
   # Delay between consecutive controller callback invocations.
   _CONTROLLER_PERIOD_SEC = 2
@@ -226,3 +230,11 @@ config = lib_config.register(CONFIG_NAMESPACE, _ConfigDefaults.__dict__)
 _DEFAULT_PIPELINE_BASE_PATH = config.BASE_PATH + "/pipeline"
 # See b/11341023 for context.
 _GCS_URLFETCH_TIMEOUT_SEC = 30
+# If a lock has been held longer than this value, mapreduce will start to use
+# logs API to check if the request has ended.
+_LEASE_DURATION_SEC = config._SLICE_DURATION_SEC * 1.1
+# In rare occasions, Logs API misses log entries. Thus
+# if a lock has been held longer than this timeout, mapreduce assumes the
+# request holding the lock has died, regardless of Logs API.
+# 10 mins is taskqueue task timeout on a frontend.
+_MAX_LEASE_DURATION_SEC = max(10 * 60 + 30, config._SLICE_DURATION_SEC * 1.5)

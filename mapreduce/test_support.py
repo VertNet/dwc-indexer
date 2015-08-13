@@ -21,7 +21,6 @@
 import base64
 import collections
 import logging
-import traceback
 import os
 import re
 
@@ -30,6 +29,10 @@ from mapreduce import model
 from google.appengine.ext.webapp import mock_webapp
 
 # TODO(user): Add tests for this file.
+
+# Change level to logging.DEBUG to see stacktrack on failed task executions.
+_LOGGING_LEVEL = logging.ERROR
+logging.getLogger().setLevel(_LOGGING_LEVEL)
 
 
 def decode_task_payload(task):
@@ -81,9 +84,13 @@ def execute_task(task, retries=0, handlers_map=None):
   url = task["url"]
   handler = None
 
+  params = []
+
   for (re_str, handler_class) in handlers_map:
     re_str = "^" + re_str + "($|\\?)"
-    if re.match(re_str, url):
+    m = re.match(re_str, url)
+    if m:
+      params = m.groups()[:-1]  # last groups was added by ($|\\?) above
       break
   else:
     raise Exception("Can't determine handler for %s" % task)
@@ -128,7 +135,12 @@ def execute_task(task, retries=0, handlers_map=None):
       request.set(k, v)
 
   response = mock_webapp.MockResponse()
+  saved_os_environ = os.environ
+  copy_os_environ = dict(os.environ)
+  copy_os_environ.update(request.environ)
+
   try:
+    os.environ = copy_os_environ
     # Webapp2 expects request/response in the handler instantiation, and calls
     # initialize automatically.
     handler = handler_class(request, response)
@@ -136,15 +148,16 @@ def execute_task(task, retries=0, handlers_map=None):
     # For webapp, setup request before calling initialize.
     handler = handler_class()
     handler.initialize(request, response)
+  finally:
+    os.environ = saved_os_environ
 
-  saved_os_environ = os.environ
   try:
-    os.environ = dict(os.environ)
-    os.environ.update(request.environ)
+    os.environ = copy_os_environ
+
     if task["method"] == "POST":
-      handler.post()
+      handler.post(*params)
     elif task["method"] == "GET":
-      handler.get()
+      handler.get(*params)
     else:
       raise Exception("Unsupported method: %s" % task.method)
   finally:
@@ -181,8 +194,8 @@ def execute_all_tasks(taskqueue, queue="default", handlers_map=None):
         handler = execute_task(task, retries, handlers_map=handlers_map)
         task_run_counts[handler.__class__] += 1
         break
-      # pylint: disable=bare-except
-      except:
+      # pylint: disable=broad-except
+      except Exception, e:
         retries += 1
         # Arbitrary large number.
         if retries > 100:
@@ -193,6 +206,7 @@ def execute_all_tasks(taskqueue, queue="default", handlers_map=None):
             "Task %s is being retried for the %s time",
             task["name"],
             retries)
+        logging.debug(e)
 
   return task_run_counts
 
