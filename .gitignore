@@ -39,3 +39,4 @@ storage/
 
 # Mac OS files
 .DS_Store
+lib/.DS_Store

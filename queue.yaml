@@ -16,7 +16,8 @@
 
 # Note: Make sure that all named tasks are consistent between queue.yaml files for 
 # versions deploying to the same app. For example, /webapp/queue.yaml and 
-# /dwc-indexer/queue.yaml
+# /dwc-indexer/queue.yaml, otherwise when task queues will be disabled that are 
+# not in the currently deployed app.
 
 # Queue configuration for the app:
 total_storage_limit: 500M

@@ -204,7 +204,7 @@ def _rank(rec):
         if hasyear is True:
             rank = 2
             if hasmonth is True:
-                rank = 2
+                rank = 3
                 if hasday is True:
                     rank = 4
     return rank
