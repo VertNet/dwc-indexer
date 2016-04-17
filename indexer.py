@@ -48,7 +48,8 @@ my_default_retry_params = gcs.RetryParams(initial_delay=0.2,
 
 gcs.set_default_retry_params(my_default_retry_params)
 
-indexer_version='2015-08-13T15:13:54+01:00'
+indexer_version='2016-04-16T19:36-03:00'
+#indexer_version='2015-08-13T15:13:54+01:00'
 
 class IndexJob(ndb.Model):
     write_path = ndb.TextProperty()
@@ -90,6 +91,8 @@ class BootstrapGcs(webapp2.RequestHandler):
             return      
         write_retry_params = gcs.RetryParams(backoff_factor=1.1)
         for filename in os.listdir('dwc'):
+            if filename == '.DS_Store':
+                continue
             path = os.path.abspath('dwc/%s' % filename)
             gcs_path = '%s/%s' % (DEV_BUCKET, filename)
             data = open(path, 'r').read()

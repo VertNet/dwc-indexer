@@ -1,3 +1,6 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
 import json
 import logging
 import re
@@ -61,7 +64,9 @@ HEADER = [
 'higherclassification', 'kingdom', 'phylum', 'classs', 'order', 'family', 'genus', 
 'subgenus', 'specificepithet', 'infraspecificepithet', 'taxonrank', 'verbatimtaxonrank',
 'scientificnameauthorship', 'vernacularname', 'nomenclaturalcode', 'taxonomicstatus', 
-'nomenclaturalstatus', 'taxonremarks']
+'nomenclaturalstatus', 'taxonremarks', 'haslength', 'haslifestage', 'hasmass', 
+'hassex', 'lengthinmm', 'massing', 'lengthunitsinferred', 'massunitsinferred',
+'derivedlifestage', 'derivedsex']
 
 def is_float(str):
     """Return the value of str as a float if possible, otherwise return None."""
@@ -70,6 +75,17 @@ def is_float(str):
         return None
     try:
         f = float(str)
+        return f
+    except ValueError:
+        return None
+ 
+def is_int(str):
+    """Return the value of str as an int if possible, otherwise return None."""
+    # Accepts str as string. Returns int(str) or None
+    if str is None:
+        return None
+    try:
+        f = int(str)
         return f
     except ValueError:
         return None
@@ -97,7 +113,7 @@ def valid_month(month):
     if fmonth > 12:
         return False
     return True
- 
+
 def valid_day(day):
     """Return True if the day is between 1 and 31 inclusive, otherwise return False."""
     # Accepts day as string.
@@ -109,7 +125,71 @@ def valid_day(day):
     if fday > 31:
         return False
     return True
- 
+
+def valid_dayofyear(dayofyear):
+    """Return True if the dayofyear is between 1 and 366 inclusive, 
+       otherwise return False."""
+    # Accepts dayofyear as string.
+    fdayofyear = is_float(dayofyear)
+    if fdayofyear is None:
+        return False
+    if fdayofyear < 1:
+        return False
+    if fdayofyear > 366:
+        return False
+    return True
+
+def leap_year(year):
+    # Assumes year passes valid_year()
+    if year % 400 == 0:
+        return True
+    if year % 100 == 0:
+        return False
+    if year % 4 == 0:
+        return True
+    else:
+        return False
+
+def start_day_of_year(rec):
+    """Return the the start day of year based on year, month, and day if there is no
+        current startdayofyear or if it is not a valid day of year."""
+    if rec.has_key('startdayofyear'):
+        if valid_dayofyear(rec['startdayofyear']):
+            return is_int(rec['startdayofyear'])
+    return days_of_year(rec)
+    
+def end_day_of_year(rec):
+    """Return the the end day of year based on year, month, and day if there is no
+        current enddayofyear or if it is not a valid day of year."""
+    if rec.has_key('enddayofyear'):
+        if valid_dayofyear(rec['enddayofyear']):
+            return is_int(rec['enddayofyear'])
+    return days_of_year(rec)
+    
+def days_of_year(rec):
+    """Return the the day of year based on year, month, and day."""
+    if rec.has_key('day') == False or valid_day(rec['day'] == False):
+        return None
+    if rec.has_key('month') == False or valid_month(rec['month']) == False:
+        return None
+    if rec.has_key('year') == False or valid_year(rec['year']) == False:
+        return None
+    # Should have naively valid values for day, month, and year at this point.
+    # Should also have no valid values in start or end day of year.
+    return day_of_year(rec['day'], rec['month'], rec['year'])
+
+def day_of_year(day, month, year):
+    # Assumes day passes valid_day(), month is passes valid_month(),
+    # and year passes valid_year()
+    year = is_int(year)
+    month = is_int(month)-1
+    day = is_int(day)
+    leap = 0
+    if leap_year(year) and month>1:
+       leap = 1
+    firsts = [0,31,59,90,120,151,181,212,243,273,304,334]
+    return firsts[month]+day+leap
+
 def valid_latlng(lat,lng):
     """Return True if lat and lng are in valid ranges, otherwise return False."""
     # Accepts lat and lng as strings.
@@ -224,9 +304,9 @@ def has_media(rec):
             return 1
     return 0
 
-tissuetokens = ["+t", "tiss", "tissue", "blood", "dmso", "dna", "extract", "froze", 
-                "forzen", "freez", "freeze", "heart", "muscle", "higado", "kidney",
-                "liver", "lung", "nitrogen", "pectoral", "rinon",
+tissuetokens = ["+t", "tiss", "tissue", "blood", "dmso", "dna", "extract", "froze",
+                "frozen", "forzen", "freez", "freeze", "heart", "muscle", "higado", 
+                "kidney", "liver", "lung", "nitrogen", "pectoral", "rinon", "riñon",
                 "kidney", "rnalater", "sample", "sangre", "toe", "spleen"]
 
 def has_tissue(rec):
@@ -400,7 +480,8 @@ def verbatim_dwc(rec, keyname):
     return rec
 
 def index_record(data, indexdate, issue=None):
-    """Creates a document ready to index from the given input data. This is where the work is to construct the document."""
+    """Creates a document ready to index from the given input data. This is where the 
+       work is done to construct the document."""
     occid, icode, collcode, catnum, \
     gbifdatasetid, gbifpublisherid, networks, \
     license, iptlicense, migrator, \
@@ -415,7 +496,10 @@ def index_record(data, indexdate, issue=None):
     year, month, day, \
     collname, recordnumber, fieldnumber, \
     bed, formation, group, member, \
-    sex, lifestage, preparations, reproductivecondition = map(data.get, 
+    sex, lifestage, preparations, reproductivecondition, \
+    startdayofyear, enddayofyear, \
+    haslength, haslifestage, hasmass, hassex, \
+    lengthinmm, massing = map(data.get, 
         ['id', 'icode', 'collectioncode', 'catalognumber', 
          'gbifdatasetid', 'gbifpublisherid', 'networks', 
          'license', 'iptlicense', 'migrator',
@@ -430,7 +514,10 @@ def index_record(data, indexdate, issue=None):
          'year', 'month', 'day', 
          'recordedby', 'recordnumber', 'fieldnumber',
          'bed', 'formation', 'group', 'member',
-         'sex', 'lifestage', 'preparations', 'reproductivecondition'])
+         'sex', 'lifestage', 'preparations', 'reproductivecondition',
+         'startdayofyear', 'enddayofyear',
+         'haslength', 'haslifestage', 'hasmass', 'hassex', 
+         'lengthinmm', 'massing'])
     
     # Translate the field 'classs' to field 'class'
     if data.has_key('classs'):        
@@ -560,6 +647,16 @@ def index_record(data, indexdate, issue=None):
                 search.TextField(name='preparations', value=preparations),
                 search.TextField(name='reproductivecondition', value=reproductivecondition),
 
+                search.NumberField(name='haslength', value=is_int(haslength)),
+                search.NumberField(name='haslifestage', value=is_int(haslifestage)),
+                search.NumberField(name='hasmass', value=is_int(hasmass)),
+                search.NumberField(name='hassex', value=is_int(hassex)),
+                search.NumberField(name='lengthinmm', value=is_float(lengthinmm)),
+                search.NumberField(name='massing', value=is_float(massing)),
+
+                search.NumberField(name='startdayofyear', value=start_day_of_year(data)),
+                search.NumberField(name='enddayofyear', value=end_day_of_year(data)),
+
                 search.NumberField(name='media', value=has_media(data)),
                 search.NumberField(name='tissue', value=has_tissue(data)),
                 search.NumberField(name='fossil', value=is_fossil(data,res_id)),
@@ -600,6 +697,7 @@ def index_doc(doc, index_name, namespace, issue=None):
     while retry_count < max_retries:
         try:
             search.Index(index_name, namespace=namespace).put(doc)
+            logging.warning('Indexed doc:\n%s' % doc )
             return # Successfully indexed document.
         except Exception, e:
             logging.error('Put #%s failed for doc %s (%s)' % (retry_count, doc.doc_id, e))
@@ -633,7 +731,7 @@ def build_search_index(readbuffer):
         row=readbuffer[1]
         # Create a dictionary from the HEADER and the row
         data = get_rec_dict(dict(zip(HEADER, row.split('\t'))))
-#        logging.info('Data from %s offset %s: %s' % (readbuffer[0][0], readbuffer[0][1], data))
+#        logging.warning('Data from %s offset %s: %s' % (readbuffer[0][0], readbuffer[0][1], data))
         # Create an index document from the row dictionary
         doc = index_record(data, indexdate)
         # Store the document in the given index
