@@ -26,7 +26,7 @@
 __author__ = "John Wieczorek"
 __contributors__ = "Aaron Steele, John Wieczorek"
 __copyright__ = "Copyright 2016 vertnet.org"
-__version__ = "field_utils.py 2016-07-11T09:44+2:00"
+__version__ = "field_utils.py 2016-07-11T19:13+2:00"
 
 # NOTE: The field lists here should match exactly those of 
 # https://github.com/VertNet/post-harvest-processor/blob/master/lib/field_utils.py
@@ -90,7 +90,7 @@ REMOVE_FIELDS = [
 'nameaccordingto', 'nomenclaturalstatus', 'taxonremarks']
 
 # Fields to go in the output
-def INDEX_FIELDS():
+def index_fields():
     indexthese = HARVEST_FIELDS + ADDED_FIELDS
     for f in REMOVE_FIELDS:
         indexthese.remove(f)

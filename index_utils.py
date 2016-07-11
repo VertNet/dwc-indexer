@@ -15,13 +15,13 @@
 __author__ = "John Wieczorek"
 __contributors__ = "Aaron Steele, John Wieczorek"
 __copyright__ = "Copyright 2016 vertnet.org"
-__version__ = "index_utils.py 2016-07-11T10:19+2:00"
+__version__ = "index_utils.py 2016-07-11T19:13+2:00"
 
 import json
 import logging
 import re
 import os
-from field_utils import INDEX_FIELDS
+from field_utils import index_fields
 from datetime import datetime
 from google.appengine.api import namespace_manager
 from google.appengine.api import search
@@ -32,7 +32,7 @@ IS_DEV = 'Development' in os.environ['SERVER_SOFTWARE']
 
 # The expected header of the input stream. This will not be in the stream, but is defined
 # here to define the structure of the stream.
-HEADER = INDEX_FIELDS()
+HEADER = index_fields()
 
 def build_search_index(readbuffer):
     """
