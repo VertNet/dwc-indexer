@@ -15,7 +15,7 @@
 __author__ = "John Wieczorek"
 __contributors__ = "Aaron Steele, John Wieczorek"
 __copyright__ = "Copyright 2016 vertnet.org"
-__version__ = "index_utils.py 2016-07-11T09:59+2:00"
+__version__ = "index_utils.py 2016-07-11T10:15+2:00"
 
 import json
 import logging
@@ -195,6 +195,7 @@ def index_record(data, indexdate, issue=None):
                 search.TextField(name='recordedby', value=recordedby),
                 search.TextField(name='recordnumber', value=recordnumber),
                 search.TextField(name='fieldnumber', value=fieldnumber),
+                search.TextField(name='establishmentmeans', value=establishmentmeans),
 
                 search.TextField(name='bed', value=bed),
                 search.TextField(name='formation', value=formation),
@@ -215,6 +216,7 @@ def index_record(data, indexdate, issue=None):
                 search.NumberField(name='fossil', value=as_int(isfossil)),
                 search.NumberField(name='mappable', value=as_int(mappable)),
                 search.NumberField(name='wascaptive', value=as_int(wascaptive)),
+                search.NumberField(name='wasinvasive', value=as_int(wasinvasive)),
 
                 search.NumberField(name='haslength', value=as_int(haslength)),
                 search.NumberField(name='haslifestage', value=as_int(haslifestage)),
