@@ -15,7 +15,7 @@
 __author__ = "John Wieczorek"
 __contributors__ = "Aaron Steele, John Wieczorek"
 __copyright__ = "Copyright 2016 vertnet.org"
-__version__ = "index_utils.py 2016-07-11T10:15+2:00"
+__version__ = "index_utils.py 2016-07-11T10:19+2:00"
 
 import json
 import logging
@@ -90,7 +90,7 @@ def index_record(data, indexdate, issue=None):
     """
     keyname, occid, icode, collcode, catnum, \
     gbifdatasetid, gbifpublisherid, networks, \
-    license, iptlicense, migrator, vntype, \
+    license, iptlicense, migrator, vntype, orgcountry, orgstateprovince, \
     dctype, basisofrecord, \
     continent, country, stateprov, county, municipality, \
     islandgroup, island, waterbody, locality, \
@@ -109,7 +109,7 @@ def index_record(data, indexdate, issue=None):
     lengthinmm, massing, recrank, hashid = map(data.get, 
         ['keyname', 'id', 'icode', 'collectioncode', 'catalognumber', 
          'gbifdatasetid', 'gbifpublisherid', 'networks', 
-         'license', 'iptlicense', 'migrator', 'vntype', 
+         'license', 'iptlicense', 'migrator', 'vntype', 'orgcountry', 'orgstateprovince',
          'dctype', 'basisofrecord', 
          'continent', 'country', 'stateprovince', 'county', 'municipality', 
          'islandgroup', 'island', 'waterbody', 'locality',
@@ -157,6 +157,8 @@ def index_record(data, indexdate, issue=None):
                 search.TextField(name='iptlicense', value=iptlicense),
                 search.TextField(name='migrator', value=migrator),
                 search.TextField(name='type', value=vntype),
+                search.TextField(name='orgcountry', value=orgcountry),
+                search.TextField(name='orgstateprovince', value=orgstateprovince),
 
                 search.TextField(name='dctype', value=dctype),
                 search.TextField(name='basisofrecord', value=basisofrecord),
