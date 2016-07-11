@@ -15,7 +15,7 @@
 __author__ = "John Wieczorek"
 __contributors__ = "Aaron Steele, John Wieczorek"
 __copyright__ = "Copyright 2016 vertnet.org"
-__version__ = "index_utils.py 2016-07-09T14:40+2:00"
+__version__ = "index_utils.py 2016-07-11T09:59+2:00"
 
 import json
 import logging
@@ -99,12 +99,12 @@ def index_record(data, indexdate, issue=None):
     kingdom, phylum, classs, order, family, \
     genus, specep, infspecep, \
     scientificname, vernacularname, typestatus, \
-    recordedby, recordnumber, fieldnumber, \
+    recordedby, recordnumber, fieldnumber, establishmentmeans, \
     bed, formation, group, member, \
     sex, lifestage, preparations, reproductivecondition, \
     year, month, day, startdayofyear, enddayofyear, eventdate, \
     haslicense, hasmedia, hastissue, hastypestatus, \
-    isfossil, mappable, wascaptive, \
+    isfossil, mappable, wascaptive, wasinvasive, \
     haslength, haslifestage, hasmass, hassex, \
     lengthinmm, massing, recrank, hashid = map(data.get, 
         ['keyname', 'id', 'icode', 'collectioncode', 'catalognumber', 
@@ -118,12 +118,12 @@ def index_record(data, indexdate, issue=None):
          'kingdom', 'phylum', 'class', 'order', 'family', 
          'genus', 'specificepithet', 'infraspecificepithet', 
          'scientificname', 'vernacularname', 'typestatus', 
-         'recordedby', 'recordnumber', 'fieldnumber',
+         'recordedby', 'recordnumber', 'fieldnumber', 'establishmentmeans',
          'bed', 'formation', 'group', 'member',
          'sex', 'lifestage', 'preparations', 'reproductivecondition',
          'year', 'month', 'day', 'startdayofyear', 'enddayofyear', 'eventdate',
          'haslicense', 'hasmedia', 'hastissue', 'hastypestatus', 
-         'isfossil', 'mappable', 'wascaptive',
+         'isfossil', 'mappable', 'wascaptive', 'wasinvasive',
          'haslength', 'haslifestage', 'hasmass', 'hassex', 
          'lengthinmm', 'massing', 'recrank', 'hashid'])
 
