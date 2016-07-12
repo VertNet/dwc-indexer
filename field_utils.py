@@ -26,7 +26,7 @@
 __author__ = "John Wieczorek"
 __contributors__ = "Aaron Steele, John Wieczorek"
 __copyright__ = "Copyright 2016 vertnet.org"
-__version__ = "field_utils.py 2016-07-11T19:13+2:00"
+__version__ = "field_utils.py 2016-07-12T11:28+2:00"
 
 # NOTE: The field lists here should match exactly those of 
 # https://github.com/VertNet/post-harvest-processor/blob/master/lib/field_utils.py
@@ -35,7 +35,7 @@ __version__ = "field_utils.py 2016-07-11T19:13+2:00"
 HARVEST_FIELDS = [
 'icode', 'title', 'citation', 'contact', 'dwca', 'email', 'eml', 'emlrights', 
 'gbifdatasetid', 'gbifpublisherid', 'doi', 'iptlicense', 'migrator', 'networks', 
-'orgcountry', 'orgname', 'orgstateprovince', 'pubdate', 'source_url', 'url', 'id', 
+'orgcountry', 'orgname', 'orgstateprovince', 'pubdate', 'source_url', 'url', 'iptrecordid', 
 'associatedmedia', 'associatedoccurrences', 'associatedorganisms', 'associatedreferences', 
 'associatedsequences', 'associatedtaxa', 'bed', 'behavior', 'catalognumber', 'continent', 
 'coordinateprecision', 'coordinateuncertaintyinmeters', 'country', 'countrycode', 
@@ -78,14 +78,14 @@ HARVEST_FIELDS = [
 
 # Fields added for indexing
 ADDED_FIELDS = [
-'keyname', 'haslicense', 'vntype', 'recrank', 'mappable', 'hashid',
+'keyname', 'haslicense', 'vntype', 'rank', 'mappable', 'hashid',
 'hastypestatus', 'wascaptive', 'wasinvasive', 'hastissue', 'hasmedia', 'isfossil',
 'haslength', 'haslifestage', 'hasmass', 'hassex', 'lengthinmm', 'massing', 
 'lengthunitsinferred', 'massunitsinferred', 'underivedlifestage', 'underivedsex']
 
 # Fields to remove from indexing
 REMOVE_FIELDS = [
-'dwca', 'eml', 'url', 'taxonid', 'acceptednameusageid', 'parentnameusageid', 
+'dwca', 'eml', 'iptlicense', 'url', 'taxonid', 'acceptednameusageid', 'parentnameusageid', 
 'originalnameusageid', 'nameaccordingtoid', 'taxonconceptid', 'parentnameusage', 
 'nameaccordingto', 'nomenclaturalstatus', 'taxonremarks']
 

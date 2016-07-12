@@ -15,7 +15,7 @@
 __author__ = "John Wieczorek"
 __contributors__ = "Aaron Steele, John Wieczorek"
 __copyright__ = "Copyright 2016 vertnet.org"
-__version__ = "index_utils.py 2016-07-11T19:13+2:00"
+__version__ = "index_utils.py 2016-07-12T11:19+2:00"
 
 import json
 import logging
@@ -88,16 +88,16 @@ def index_record(data, indexdate, issue=None):
     Creates a document ready to index from the given input data. This is where the work 
     is done to construct the document.
     """
-    keyname, occid, icode, collcode, catnum, \
+    keyname, iptrecordid, icode, collectioncode, catalognumber, \
     gbifdatasetid, gbifpublisherid, networks, \
-    license, iptlicense, migrator, vntype, orgcountry, orgstateprovince, \
+    license, migrator, vntype, orgcountry, orgstateprovince, \
     dctype, basisofrecord, \
     continent, country, stateprov, county, municipality, \
     islandgroup, island, waterbody, locality, \
-    lat, lon, uncertainty, \
+    decimallatitude, decimallongitude, coordinateuncertaintyinmeters, \
     geodeticdatum, georeferencedby, georeferenceverificationstatus, \
     kingdom, phylum, classs, order, family, \
-    genus, specep, infspecep, \
+    genus, specificepithet, infraspecificepithet, \
     scientificname, vernacularname, typestatus, \
     recordedby, recordnumber, fieldnumber, establishmentmeans, \
     bed, formation, group, member, \
@@ -106,10 +106,10 @@ def index_record(data, indexdate, issue=None):
     haslicense, hasmedia, hastissue, hastypestatus, \
     isfossil, mappable, wascaptive, wasinvasive, \
     haslength, haslifestage, hasmass, hassex, \
-    lengthinmm, massing, recrank, hashid = map(data.get, 
-        ['keyname', 'id', 'icode', 'collectioncode', 'catalognumber', 
+    lengthinmm, massing, rank, hashid = map(data.get, 
+        ['keyname', 'iptrecordid', 'icode', 'collectioncode', 'catalognumber', 
          'gbifdatasetid', 'gbifpublisherid', 'networks', 
-         'license', 'iptlicense', 'migrator', 'vntype', 'orgcountry', 'orgstateprovince',
+         'license', 'migrator', 'vntype', 'orgcountry', 'orgstateprovince',
          'dctype', 'basisofrecord', 
          'continent', 'country', 'stateprovince', 'county', 'municipality', 
          'islandgroup', 'island', 'waterbody', 'locality',
@@ -125,122 +125,113 @@ def index_record(data, indexdate, issue=None):
          'haslicense', 'hasmedia', 'hastissue', 'hastypestatus', 
          'isfossil', 'mappable', 'wascaptive', 'wasinvasive',
          'haslength', 'haslifestage', 'hasmass', 'hassex', 
-         'lengthinmm', 'massing', 'recrank', 'hashid'])
+         'lengthinmm', 'massing', 'rank', 'hashid'])
 
-    # The data type on eventdate is date, so turn the input string into a date.
-    eventdate = _w3c_eventdate(data)
+#    # The data type on eventdate is date, so turn the input string into a date.
+#    eventdate = _w3c_eventdate(data)
     
     # The data type for location is a GeoPoint. Create one from lat and lng ignoring
     # datum. To do this correctly, the lat and lng should be transformed to WGS84 before
     # this.
-    location = _location(lat, lon)
+    location = _location(decimallatitude, decimallongitude)
 
     # Do full text indexing on all the verbatim fields of the record. 
     # Index specific key fields for explicit searches on their content.
 
     doc = search.Document(
         doc_id=keyname,
-        rank=as_int(recrank),
+        rank=as_int(rank),
 		fields=[
-                search.TextField(name='lastindexed', value=indexdate),                
-
-                search.TextField(name='iptrecordid', value=occid),
+                ### RECORD-LEVEL ###
                 search.TextField(name='institutioncode', value=icode),
-                search.TextField(name='collectioncode', value=collcode),
-                search.TextField(name='catalognumber', value=catnum),
-                
-                search.TextField(name='gbifdatasetid', value=gbifdatasetid),
-                search.TextField(name='gbifpublisherid', value=gbifpublisherid),
-                search.TextField(name='networks', value=networks),
-
-                search.TextField(name='license', value=license),
-                search.TextField(name='iptlicense', value=iptlicense),
-                search.TextField(name='migrator', value=migrator),
-                search.TextField(name='type', value=vntype),
-                search.TextField(name='orgcountry', value=orgcountry),
-                search.TextField(name='orgstateprovince', value=orgstateprovince),
-
+                search.TextField(name='collectioncode', value=collectioncode),
+                search.TextField(name='catalognumber', value=catalognumber),
                 search.TextField(name='dctype', value=dctype),
+                search.TextField(name='license', value=license),
                 search.TextField(name='basisofrecord', value=basisofrecord),
 
-                search.TextField(name='continent', value=continent),
-                search.TextField(name='country', value=country),
-                search.TextField(name='stateprovince', value=stateprov),
-                search.TextField(name='county', value=county),
-                search.TextField(name='municipality', value=municipality),
-
-                search.TextField(name='island', value=island),
-                search.TextField(name='islandgroup', value=islandgroup),
-                search.TextField(name='waterbody', value=waterbody),
-                search.TextField(name='locality', value=locality),
-
-                search.TextField(name='geodeticdatum', value=geodeticdatum),
-                search.TextField(name='georeferencedby', value=georeferencedby),
-                search.TextField( \
-                    name='georeferenceverificationstatus', \
-                    value=georeferenceverificationstatus),
-
-                search.TextField(name='kingdom', value=kingdom),
-                search.TextField(name='phylum', value=phylum),
-                search.TextField(name='class', value=classs),
-                search.TextField(name='order', value=order),
-                search.TextField(name='family', value=family),
-
-                search.TextField(name='genus', value=genus),
-                search.TextField(name='specificepithet', value=specep),
-                search.TextField(name='infraspecificepithet', value=infspecep),
-
-                search.TextField(name='scientificname', value=scientificname),
-                search.TextField(name='vernacularname', value=vernacularname),
-                search.TextField(name='typestatus', value=typestatus),
-
+                ### OCCURRENCE ###
+                search.TextField(name='iptrecordid', value=iptrecordid),
                 search.TextField(name='recordedby', value=recordedby),
                 search.TextField(name='recordnumber', value=recordnumber),
                 search.TextField(name='fieldnumber', value=fieldnumber),
                 search.TextField(name='establishmentmeans', value=establishmentmeans),
-
-                search.TextField(name='bed', value=bed),
-                search.TextField(name='formation', value=formation),
-                search.TextField(name='group', value=group),
-                search.TextField(name='member', value=member),
-
                 search.TextField(name='sex', value=sex),
                 search.TextField(name='lifestage', value=lifestage),
                 search.TextField(name='preparations', value=preparations),
                 search.TextField( \
                     name='reproductivecondition', value=reproductivecondition),
 
-                search.NumberField(name='haslicense', value=as_int(haslicense)),
-                search.NumberField(name='media', value=as_int(hasmedia)),
-                search.NumberField(name='tissue', value=as_int(hastissue)),
-                search.NumberField(name='hastypestatus', value=as_int(hastypestatus)),
+                ### EVENT (for year, month, day, see below) ###
+                search.TextField(name='eventdate', value=eventdate),
 
-                search.NumberField(name='fossil', value=as_int(isfossil)),
+                ### LOCATION (for coordinateuncertaintyinmeters, see below) ###
+                search.TextField(name='continent', value=continent),
+                search.TextField(name='country', value=country),
+                search.TextField(name='stateprovince', value=stateprov),
+                search.TextField(name='county', value=county),
+                search.TextField(name='municipality', value=municipality),
+                search.TextField(name='island', value=island),
+                search.TextField(name='islandgroup', value=islandgroup),
+                search.TextField(name='waterbody', value=waterbody),
+                search.TextField(name='locality', value=locality),
+                search.TextField(name='geodeticdatum', value=geodeticdatum),
+                search.TextField(name='georeferencedby', value=georeferencedby),
+                search.TextField( \
+                    name='georeferenceverificationstatus', \
+                    value=georeferenceverificationstatus),
+
+                ### GEOLOGICAL CONTEXT ###
+                search.TextField(name='bed', value=bed),
+                search.TextField(name='formation', value=formation),
+                search.TextField(name='group', value=group),
+                search.TextField(name='member', value=member),
+
+                ### IDENTIFICATION ###
+                search.TextField(name='typestatus', value=typestatus),
+
+                ### TAXON ###
+                search.TextField(name='kingdom', value=kingdom),
+                search.TextField(name='phylum', value=phylum),
+                search.TextField(name='class', value=classs),
+                search.TextField(name='order', value=order),
+                search.TextField(name='family', value=family),
+                search.TextField(name='genus', value=genus),
+                search.TextField(name='specificepithet', value=specificepithet),
+                search.TextField(name='infraspecificepithet', value=infraspecificepithet),
+                search.TextField(name='scientificname', value=scientificname),
+                search.TextField(name='vernacularname', value=vernacularname),
+
+                ### TRAIT (for lengthinmm, massing, see below) ###
+
+                ### DATA SET ###
+                search.TextField(name='gbifdatasetid', value=gbifdatasetid),
+                search.TextField(name='gbifpublisherid', value=gbifpublisherid),
+                search.TextField(name='lastindexed', value=indexdate),                
+                search.TextField(name='networks', value=networks),
+                search.TextField(name='migrator', value=migrator),
+                search.TextField(name='orgcountry', value=orgcountry),
+                search.TextField(name='orgstateprovince', value=orgstateprovince),
+
+                ### BOOLEANS ###
+                search.NumberField(name='haslicense', value=as_int(haslicense)),
+                search.NumberField(name='hasmedia', value=as_int(hasmedia)),
+                search.NumberField(name='hastissue', value=as_int(hastissue)),
+                search.NumberField(name='hastypestatus', value=as_int(hastypestatus)),
+                search.NumberField(name='isfossil', value=as_int(isfossil)),
                 search.NumberField(name='mappable', value=as_int(mappable)),
                 search.NumberField(name='wascaptive', value=as_int(wascaptive)),
                 search.NumberField(name='wasinvasive', value=as_int(wasinvasive)),
-
                 search.NumberField(name='haslength', value=as_int(haslength)),
                 search.NumberField(name='haslifestage', value=as_int(haslifestage)),
                 search.NumberField(name='hasmass', value=as_int(hasmass)),
                 search.NumberField(name='hassex', value=as_int(hassex)),
 
-                search.NumberField(name='rank', value=as_int(recrank)),
+                ### INDEX ###
+                search.NumberField(name='rank', value=as_int(rank)),
+                search.TextField(name='vntype', value=vntype),
                 search.NumberField(name='hashid', value=as_int(hashid)),
-
-                search.TextField(name='verbatim_record', 
-                                 value=json.dumps(data))])
-
-    if location is not None:
-        doc.fields.append(search.GeoField(name='location', value=location))
-
-    if eventdate is not None:
-        doc.fields.append(search.DateField(name='eventdate', value=eventdate))
-
-    v = as_int(uncertainty)
-    if v is not None:
-        doc.fields.append(search.NumberField( \
-            name='coordinateuncertaintyinmeters', value=v))
+                search.TextField(name='verbatim_record', value=json.dumps(data))])
 
     v = as_int(year)
     if v is not None:
@@ -276,6 +267,14 @@ def index_record(data, indexdate, issue=None):
     if v is not None:
         doc.fields.append(search.NumberField( \
             name='massing', value=v))
+
+    if location is not None:
+        doc.fields.append(search.GeoField(name='location', value=location))
+
+    v = as_int(coordinateuncertaintyinmeters)
+    if v is not None:
+        doc.fields.append(search.NumberField( \
+            name='coordinateuncertaintyinmeters', value=v))
 
     return doc
 
@@ -328,23 +327,23 @@ def _location(lat, lon):
     except:
         return None
 
-def _w3c_eventdate(rec):
-    """Construct a W3C datetime from year, month, and day, if possible."""
-    if rec.has_key('day') is False:
-        return None
-    if len(rec['day']) == 0:
-        return None
-    if rec.has_key('month') is False:
-        return None
-    if len(rec['month']) == 0:
-        return None
-    if rec.has_key('year') is False:
-        return None
-    if len(rec['year']) == 0:
-        return None
-    isodate = '%s-%s-%s' % (rec['year'], rec['month'], rec['day'])
-    
-    try:
-        return datetime.strptime(isodate, '%Y-%m-%d').date()
-    except:
-        return None
+# def _w3c_eventdate(rec):
+#     """Construct a W3C datetime from year, month, and day, if possible."""
+#     if rec.has_key('day') is False:
+#         return None
+#     if len(rec['day']) == 0:
+#         return None
+#     if rec.has_key('month') is False:
+#         return None
+#     if len(rec['month']) == 0:
+#         return None
+#     if rec.has_key('year') is False:
+#         return None
+#     if len(rec['year']) == 0:
+#         return None
+#     isodate = '%s-%s-%s' % (rec['year'], rec['month'], rec['day'])
+#     
+#     try:
+#         return datetime.strptime(isodate, '%Y-%m-%d').date()
+#     except:
+#         return None
