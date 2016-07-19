@@ -15,7 +15,7 @@
 __author__ = "John Wieczorek"
 __contributors__ = "Aaron Steele, John Wieczorek"
 __copyright__ = "Copyright 2016 vertnet.org"
-__version__ = "index_utils.py 2016-07-12T11:19+2:00"
+__version__ = "index_utils.py 2016-07-19T16:45+2:00"
 
 import json
 import logging
@@ -146,12 +146,12 @@ def index_record(data, indexdate, issue=None):
                 search.TextField(name='institutioncode', value=icode),
                 search.TextField(name='collectioncode', value=collectioncode),
                 search.TextField(name='catalognumber', value=catalognumber),
-                search.TextField(name='dctype', value=dctype),
+                search.AtomField(name='dctype', value=dctype),
                 search.TextField(name='license', value=license),
-                search.TextField(name='basisofrecord', value=basisofrecord),
+                search.AtomField(name='basisofrecord', value=basisofrecord),
 
                 ### OCCURRENCE ###
-                search.TextField(name='iptrecordid', value=iptrecordid),
+                search.AtomField(name='iptrecordid', value=iptrecordid),
                 search.TextField(name='recordedby', value=recordedby),
                 search.TextField(name='recordnumber', value=recordnumber),
                 search.TextField(name='fieldnumber', value=fieldnumber),
@@ -191,12 +191,12 @@ def index_record(data, indexdate, issue=None):
                 search.TextField(name='typestatus', value=typestatus),
 
                 ### TAXON ###
-                search.TextField(name='kingdom', value=kingdom),
-                search.TextField(name='phylum', value=phylum),
-                search.TextField(name='class', value=classs),
-                search.TextField(name='order', value=order),
-                search.TextField(name='family', value=family),
-                search.TextField(name='genus', value=genus),
+                search.AtomField(name='kingdom', value=kingdom),
+                search.AtomField(name='phylum', value=phylum),
+                search.AtomField(name='class', value=classs),
+                search.AtomField(name='order', value=order),
+                search.AtomField(name='family', value=family),
+                search.AtomField(name='genus', value=genus),
                 search.TextField(name='specificepithet', value=specificepithet),
                 search.TextField(name='infraspecificepithet', value=infraspecificepithet),
                 search.TextField(name='scientificname', value=scientificname),
@@ -205,8 +205,8 @@ def index_record(data, indexdate, issue=None):
                 ### TRAIT (for lengthinmm, massing, see below) ###
 
                 ### DATA SET ###
-                search.TextField(name='gbifdatasetid', value=gbifdatasetid),
-                search.TextField(name='gbifpublisherid', value=gbifpublisherid),
+                search.AtomField(name='gbifdatasetid', value=gbifdatasetid),
+                search.AtomField(name='gbifpublisherid', value=gbifpublisherid),
                 search.TextField(name='lastindexed', value=indexdate),                
                 search.TextField(name='networks', value=networks),
                 search.TextField(name='migrator', value=migrator),
@@ -214,22 +214,35 @@ def index_record(data, indexdate, issue=None):
                 search.TextField(name='orgstateprovince', value=orgstateprovince),
 
                 ### BOOLEANS ###
-                search.NumberField(name='haslicense', value=as_int(haslicense)),
-                search.NumberField(name='hasmedia', value=as_int(hasmedia)),
-                search.NumberField(name='hastissue', value=as_int(hastissue)),
-                search.NumberField(name='hastypestatus', value=as_int(hastypestatus)),
-                search.NumberField(name='isfossil', value=as_int(isfossil)),
-                search.NumberField(name='mappable', value=as_int(mappable)),
-                search.NumberField(name='wascaptive', value=as_int(wascaptive)),
-                search.NumberField(name='wasinvasive', value=as_int(wasinvasive)),
-                search.NumberField(name='haslength', value=as_int(haslength)),
-                search.NumberField(name='haslifestage', value=as_int(haslifestage)),
-                search.NumberField(name='hasmass', value=as_int(hasmass)),
-                search.NumberField(name='hassex', value=as_int(hassex)),
+                search.AtomField(name='haslicense', value=haslicense),
+                search.AtomField(name='hasmedia', value=hasmedia),
+                search.AtomField(name='hastissue', value=hastissue),
+                search.AtomField(name='hastypestatus', value=hastypestatus),
+                search.AtomField(name='isfossil', value=isfossil),
+                search.AtomField(name='mappable', value=mappable),
+                search.AtomField(name='wascaptive', value=wascaptive),
+                search.AtomField(name='wasinvasive', value=wasinvasive),
+                search.AtomField(name='haslength', value=haslength),
+                search.AtomField(name='haslifestage', value=haslifestage),
+                search.AtomField(name='hasmass', value=hasmass),
+                search.AtomField(name='hassex', value=hassex),
+
+#                 search.NumberField(name='haslicense', value=as_int(haslicense)),
+#                 search.NumberField(name='hasmedia', value=as_int(hasmedia)),
+#                 search.NumberField(name='hastissue', value=as_int(hastissue)),
+#                 search.NumberField(name='hastypestatus', value=as_int(hastypestatus)),
+#                 search.NumberField(name='isfossil', value=as_int(isfossil)),
+#                 search.NumberField(name='mappable', value=as_int(mappable)),
+#                 search.NumberField(name='wascaptive', value=as_int(wascaptive)),
+#                 search.NumberField(name='wasinvasive', value=as_int(wasinvasive)),
+#                 search.NumberField(name='haslength', value=as_int(haslength)),
+#                 search.NumberField(name='haslifestage', value=as_int(haslifestage)),
+#                 search.NumberField(name='hasmass', value=as_int(hasmass)),
+#                 search.NumberField(name='hassex', value=as_int(hassex)),
 
                 ### INDEX ###
                 search.NumberField(name='rank', value=as_int(rank)),
-                search.TextField(name='vntype', value=vntype),
+                search.AtomField(name='vntype', value=vntype),
                 search.NumberField(name='hashid', value=as_int(hashid)),
                 search.TextField(name='verbatim_record', value=json.dumps(data))])
 
