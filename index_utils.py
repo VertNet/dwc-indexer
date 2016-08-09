@@ -15,7 +15,7 @@
 __author__ = "John Wieczorek"
 __contributors__ = "Aaron Steele, John Wieczorek"
 __copyright__ = "Copyright 2016 vertnet.org"
-__version__ = "index_utils.py 2016-07-19T16:45+2:00"
+__version__ = "index_utils.py 2016-08-09T13:10+2:00"
 
 import json
 import logging
@@ -106,7 +106,7 @@ def index_record(data, indexdate, issue=None):
     haslicense, hasmedia, hastissue, hastypestatus, \
     isfossil, mappable, wascaptive, wasinvasive, \
     haslength, haslifestage, hasmass, hassex, \
-    lengthinmm, massing, rank, hashid = map(data.get, 
+    lengthinmm, lengthtype, massing, rank, hashid = map(data.get, 
         ['keyname', 'iptrecordid', 'icode', 'collectioncode', 'catalognumber', 
          'gbifdatasetid', 'gbifpublisherid', 'networks', 
          'license', 'migrator', 'vntype', 'orgcountry', 'orgstateprovince',
@@ -125,7 +125,7 @@ def index_record(data, indexdate, issue=None):
          'haslicense', 'hasmedia', 'hastissue', 'hastypestatus', 
          'isfossil', 'mappable', 'wascaptive', 'wasinvasive',
          'haslength', 'haslifestage', 'hasmass', 'hassex', 
-         'lengthinmm', 'massing', 'rank', 'hashid'])
+         'lengthinmm', 'lengthtype', 'massing', 'rank', 'hashid'])
 
 #    # The data type on eventdate is date, so turn the input string into a date.
 #    eventdate = _w3c_eventdate(data)
@@ -203,6 +203,7 @@ def index_record(data, indexdate, issue=None):
                 search.TextField(name='vernacularname', value=vernacularname),
 
                 ### TRAIT (for lengthinmm, massing, see below) ###
+                search.TextField(name='lengthtype', value=lengthtype),
 
                 ### DATA SET ###
                 search.AtomField(name='gbifdatasetid', value=gbifdatasetid),
@@ -226,19 +227,6 @@ def index_record(data, indexdate, issue=None):
                 search.AtomField(name='haslifestage', value=haslifestage),
                 search.AtomField(name='hasmass', value=hasmass),
                 search.AtomField(name='hassex', value=hassex),
-
-#                 search.NumberField(name='haslicense', value=as_int(haslicense)),
-#                 search.NumberField(name='hasmedia', value=as_int(hasmedia)),
-#                 search.NumberField(name='hastissue', value=as_int(hastissue)),
-#                 search.NumberField(name='hastypestatus', value=as_int(hastypestatus)),
-#                 search.NumberField(name='isfossil', value=as_int(isfossil)),
-#                 search.NumberField(name='mappable', value=as_int(mappable)),
-#                 search.NumberField(name='wascaptive', value=as_int(wascaptive)),
-#                 search.NumberField(name='wasinvasive', value=as_int(wasinvasive)),
-#                 search.NumberField(name='haslength', value=as_int(haslength)),
-#                 search.NumberField(name='haslifestage', value=as_int(haslifestage)),
-#                 search.NumberField(name='hasmass', value=as_int(hasmass)),
-#                 search.NumberField(name='hassex', value=as_int(hassex)),
 
                 ### INDEX ###
                 search.NumberField(name='rank', value=as_int(rank)),
