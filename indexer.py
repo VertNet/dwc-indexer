@@ -109,13 +109,13 @@ class BootstrapGcs(webapp2.RequestHandler):
 class IndexGcsPath(webapp2.RequestHandler):
     """Index the files in a list in a GCS bucket.
        Example:
-       http://indexer.vertnet-portal.appspot.com/index-gcs-path?namespace=index-2014-02-06t2&index_name=dwc&bucket_name=vertnet-harvesting&files_list=data/2015-05-29/uwymv_herp-9f48b5c4-1e8f-42e9-89d5-abcddffae55f/*&shard_count=1
+       http://dwc-indexer.vertnet-portal.appspot.com/index-gcs-path?namespace=index-2014-02-06t2&index_name=dwc&bucket_name=vertnet-harvesting&files_list=processed/KU/gbifdatasetid/*&shard_count=1
        
-       http://indexer.vertnet-portal.appspot.com/index-gcs-path
+       http://dwc-indexer.vertnet-portal.appspot.com/index-gcs-path
        ?namespace=index-2014-02-06t2
        &index_name=dwc
        &bucket_name=vertnet-harvesting
-       &files_list=data/2015-05-29/uwymv_herp-9f48b5c4-1e8f-42e9-89d5-abcddffae55f/*
+       &files_list=processed/KU/gbifdatasetid/*
        &shard_count=1
        """
     def get(self):
@@ -180,9 +180,9 @@ class IndexGcsPath(webapp2.RequestHandler):
 class IndexDeleteResource(webapp2.RequestHandler):
     """Remove the records from an index for a gbifdatasetid.
        Example:
-       http://indexer.vertnet-portal.appspot.com/index-delete-dataset?gbifdatasetid=b11cbb9e-8ee0-4d9a-8eac-da5d5ab53a31&index_name=dwc&namespace=index-2014-02-06t2
+       http://dwc-indexer.vertnet-portal.appspot.com/index-delete-dataset?gbifdatasetid=b11cbb9e-8ee0-4d9a-8eac-da5d5ab53a31&index_name=dwc&namespace=index-2014-02-06t2
 
-       http://indexer.vertnet-portal.appspot.com/index-delete-dataset
+       http://dwc-indexer.vertnet-portal.appspot.com/index-delete-dataset
        ?gbifdatasetid=b11cbb9e-8ee0-4d9a-8eac-da5d5ab53a31
        &index_name=dwc
        &namespace=index-2014-02-06t2
