@@ -13,14 +13,18 @@
 # You should have received a copy of the GNU General Public License
 # along with Foobar.  If not, see: http://www.gnu.org/licenses
 
-# This is the App Engine configuration file for local development.
-# Note that static assets are sources from www/ which contains full
-# sourcecode without minification.
-application: vertnet-portal
-version: indexer
+# This is the App Engine configuration file for using gcloud.
+# To deploy for production at https://dwc-indexer.vertnet-portal.appspot.com:
+#   gcloud app deploy dwc-indexer.yaml --version prod --promote
+#
+# Or to deploy for testing at https://dev.dwc-indexer.vertnet-portal.appspot.com
+#   gcloud app deploy dwc-indexer.yaml --version dev --no-promote
+
+service: dwc-indexer
 runtime: python27
 threadsafe: false
 api_version: 1
+instance_class: F2
 
 includes:
 - mapreduce/include.yaml
