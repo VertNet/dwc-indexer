@@ -12,8 +12,15 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with Foobar.  If not, see: http://www.gnu.org/licenses
-
-# This is the App Engine configuration file for using gcloud.
+#
+# CODEBASE INFO
+# Repository: VertNet/dwc-indexer
+# 2016-09-14T20:57+02:00 Pushed to branch traits-atoms-microservice
+# 2016-09-15T11:47+02:00 Pushed to branch master
+#
+# DEPLOYMENT INFO
+# 2016-09-14T20:56+02:00 Last deployed version default
+#
 # To deploy for production at https://dwc-indexer.vertnet-portal.appspot.com:
 #   gcloud app deploy dwc-indexer.yaml --version prod --promote
 #
