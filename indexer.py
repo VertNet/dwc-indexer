@@ -14,8 +14,8 @@
 
 __author__ = "John Wieczorek"
 __contributors__ = "Aaron Steele, John Wieczorek"
-__copyright__ = "Copyright 2016 vertnet.org"
-__version__ = "indexer.py 2016-09-15T12:04+2:00"
+__copyright__ = "Copyright 2018 vertnet.org"
+__version__ = "indexer.py 2018-04-07T19:13-3:00"
 
 # This module contains request handlers for admin APIs.
 import logging

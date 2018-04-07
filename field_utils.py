@@ -26,7 +26,7 @@
 __author__ = "John Wieczorek"
 __contributors__ = "Aaron Steele, John Wieczorek"
 __copyright__ = "Copyright 2016 vertnet.org"
-__version__ = "field_utils.py 2016-08-09T12:44+2:00"
+__version__ = "field_utils.py 2017-04-07T18:00-3:00"
 
 # NOTE: The field lists here should match exactly those of 
 # https://github.com/VertNet/post-harvest-processor/blob/master/lib/field_utils.py
@@ -81,7 +81,8 @@ ADDED_FIELDS = [
 'keyname', 'haslicense', 'vntype', 'rank', 'mappable', 'hashid',
 'hastypestatus', 'wascaptive', 'wasinvasive', 'hastissue', 'hasmedia', 'isfossil',
 'haslength', 'haslifestage', 'hasmass', 'hassex', 'lengthinmm', 'lengthtype', 'massing', 
-'lengthunitsinferred', 'massunitsinferred', 'underivedlifestage', 'underivedsex']
+'lengthunitsinferred', 'massunitsinferred', 'underivedlifestage', 'underivedsex',
+'isarch']
 
 # Fields to remove from indexing
 REMOVE_FIELDS = [

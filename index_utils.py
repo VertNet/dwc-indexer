@@ -14,8 +14,8 @@
 
 __author__ = "John Wieczorek"
 __contributors__ = "Aaron Steele, John Wieczorek"
-__copyright__ = "Copyright 2016 vertnet.org"
-__version__ = "index_utils.py 2016-08-09T13:10+2:00"
+__copyright__ = "Copyright 2018 vertnet.org"
+__version__ = "index_utils.py 2018-04-07T19:30-3:00"
 
 import json
 import logging
@@ -104,7 +104,7 @@ def index_record(data, indexdate, issue=None):
     sex, lifestage, preparations, reproductivecondition, \
     year, month, day, startdayofyear, enddayofyear, eventdate, \
     haslicense, hasmedia, hastissue, hastypestatus, \
-    isfossil, mappable, wascaptive, wasinvasive, \
+    isfossil, isarch, mappable, wascaptive, wasinvasive, \
     haslength, haslifestage, hasmass, hassex, \
     lengthinmm, lengthtype, massing, rank, hashid = map(data.get, 
         ['keyname', 'iptrecordid', 'icode', 'collectioncode', 'catalognumber', 
@@ -123,7 +123,7 @@ def index_record(data, indexdate, issue=None):
          'sex', 'lifestage', 'preparations', 'reproductivecondition',
          'year', 'month', 'day', 'startdayofyear', 'enddayofyear', 'eventdate',
          'haslicense', 'hasmedia', 'hastissue', 'hastypestatus', 
-         'isfossil', 'mappable', 'wascaptive', 'wasinvasive',
+         'isfossil', 'isarch', 'mappable', 'wascaptive', 'wasinvasive',
          'haslength', 'haslifestage', 'hasmass', 'hassex', 
          'lengthinmm', 'lengthtype', 'massing', 'rank', 'hashid'])
 
@@ -220,6 +220,7 @@ def index_record(data, indexdate, issue=None):
                 search.AtomField(name='hastissue', value=hastissue),
                 search.AtomField(name='hastypestatus', value=hastypestatus),
                 search.AtomField(name='isfossil', value=isfossil),
+                search.AtomField(name='isarch', value=isarch),
                 search.AtomField(name='mappable', value=mappable),
                 search.AtomField(name='wascaptive', value=wascaptive),
                 search.AtomField(name='wasinvasive', value=wasinvasive),
